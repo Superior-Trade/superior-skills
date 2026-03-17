@@ -10,7 +10,7 @@ description: Interact with the Superior Trade API to backtest and deploy trading
 API client skill for backtesting and deploying Freqtrade strategies on Superior Trade's cloud infrastructure.
 
 **Base URL:** `https://api.superior.trade`
-**Auth:** `x-api-key` header (v1 and v2) or `Authorization: Bearer <JWT>` header (v2 only)
+**Auth:** `x-api-key` header on all protected endpoints
 **Docs:** `GET /docs` (Swagger UI), `GET /openapi.json` (OpenAPI spec)
 
 ## Getting an API Key
@@ -190,7 +190,8 @@ When a deployment needs exchange credentials, guide the user through obtaining a
 {
   "config": {},
   "code": "string (Python strategy code, required)",
-  "timerange": { "start": "YYYY-MM-DD", "end": "YYYY-MM-DD" }
+  "timerange": { "start": "YYYY-MM-DD", "end": "YYYY-MM-DD" },
+  "stake_amount": 100
 }
 ```
 
@@ -249,6 +250,7 @@ The `results` field is `null` while running and populates with backtest metrics 
   "config": {},
   "code": "string",
   "timerange": { "start": "YYYY-MM-DD", "end": "YYYY-MM-DD" },
+  "stake_amount": 100,
   "status": "pending | running | completed | failed",
   "results": null,
   "result_url": "https://storage.googleapis.com/... (signed URL, valid 7 days)",
@@ -728,4 +730,3 @@ When a strategy uses `adjust_trade_position()` (DCA, scaling, or any multi-order
 - Deployment status actions are `"start"` / `"stop"`
 - Response timestamps use snake_case: `created_at`, `updated_at`, `started_at`, `completed_at`
 - v1 and v2 endpoints have **identical** request/response formats — use either interchangeably
-- v1 endpoints require `x-api-key` auth only; v2 endpoints accept both `x-api-key` and `Authorization: Bearer <JWT>` (Privy embedded wallet token)
