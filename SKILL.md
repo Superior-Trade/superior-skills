@@ -1,23 +1,15 @@
 ---
 name: superior-trade-api
-version: 2.5.0
+version: 2.6.0
 updated: 2026-03-20
+description: Interact with the Superior Trade API to backtest and deploy trading strategies on Superior Trade's managed cloud — no coding required from the user. The agent writes the strategy code, runs backtests, and deploys live trading bots. Use when the user wants to create, backtest, or deploy trading strategies, monitor deployments, or check backtest results. Requires one credential — an API key (x-api-key header) obtained by logging in at https://account.superior.trade. No private keys, seed phrases, or wallet credentials are ever collected from the user — wallet management is handled entirely server-side.
 homepage: https://account.superior.trade
 source: https://github.com/Superior-Trade
-primary_credential: SUPERIOR_TRADE_API_KEY
-required_env:
-  - SUPERIOR_TRADE_API_KEY
 env:
   - name: SUPERIOR_TRADE_API_KEY
     description: "Superior Trade API key (x-api-key header). Obtained by logging in at https://account.superior.trade. Scoped to the authenticated user's own backtests and deployments only — cannot withdraw funds, export private keys, or access other users' data."
     required: true
     type: api_key
-credentials:
-  - name: SUPERIOR_TRADE_API_KEY
-    description: "Superior Trade API key (x-api-key header). Obtained by logging in at https://account.superior.trade. Scoped to the authenticated user's own backtests and deployments only — cannot withdraw funds, export private keys, or access other users' data."
-    required: true
-    type: api_key
-description: Interact with the Superior Trade API to backtest and deploy trading strategies on Superior Trade's managed cloud — no coding required from the user. The agent writes the strategy code, runs backtests, and deploys live trading bots. Use when the user wants to create, backtest, or deploy trading strategies, monitor deployments, or check backtest results. Requires one credential — an API key (x-api-key header) obtained by logging in at https://account.superior.trade. No private keys, seed phrases, or wallet credentials are ever collected from the user — wallet management is handled entirely server-side.
 ---
 
 # Superior Trade API
