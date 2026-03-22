@@ -10,7 +10,7 @@ auth:
   type: api_key
   env: SUPERIOR_TRADE_API_KEY
   header: x-api-key
-  scope: "read-write own backtests and deployments only — cannot withdraw funds or export private keys"
+  scope: "read-write own backtests and deployments only — cannot withdraw funds or export private keys. Note: the key can start live trading deployments that use real funds; confirm scope with provider and use least-privilege keys where available."
 env:
   - name: SUPERIOR_TRADE_API_KEY
     description: "Superior Trade API key (x-api-key header). Obtained at https://account.superior.trade. Scoped to the user's own backtests and deployments — cannot withdraw funds, export private keys, or access other users' data."
@@ -51,6 +51,8 @@ If the `SUPERIOR_TRADE_API_KEY` env var is already set, use it directly in the `
 This skill requires exactly **one credential**: an `x-api-key` header value.
 
 **The agent must NEVER ask users for private keys, seed phrases, or wallet credentials.** All wallet/key management is handled server-side. The only secret the user provides is their API key.
+
+> **Key scope notice:** The API key can create and start live trading deployments that use real funds. It cannot withdraw funds or export private keys. Users should confirm the key's exact scope with Superior Trade, and consider running backtests and paper trading first before granting access to a key linked to a funded account.
 
 | Can do | Cannot do |
 |--------|-----------|
