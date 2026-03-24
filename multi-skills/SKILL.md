@@ -31,19 +31,29 @@ API client skill for backtesting and deploying trading strategies on Superior Tr
 **Auth:** `x-api-key` header on all protected endpoints  
 **Docs:** `GET /docs` (Swagger UI), `GET /openapi.json` (OpenAPI spec)
 
+## Installation and Loading
+
+Use this repo copy when the agent can read local workspace files directly.
+
+- Router file: `multi-skills/SKILL.md`
+- Phase files: sibling files directly under `multi-skills/`
+- Hosted equivalent: `https://superior.trade/multi-skills/SKILL.md`
+
+When a phase-specific phase file is needed, load the **local sibling path** shown in the table below.
+
 ## Phase Detection — Load Sub-Skills On Demand
 
 This router stays in context. Load **one** sub-skill at a time based on what the user needs:
 
 | User intent | Load sub-skill |
 |---|---|
-| No API key, first-time setup, 401 errors | `multi-skills/skills/auth-setup.md` |
-| Describing a trading idea, writing strategy code or config | `multi-skills/skills/strategy-builder.md` |
-| Wants to run a backtest or asking about results | `multi-skills/skills/backtesting.md` |
-| Wants to deploy live, manage credentials | `multi-skills/skills/deployment.md` |
-| Asking about a running bot, logs, balance, wants to stop | `multi-skills/skills/monitoring.md` |
+| No API key, first-time setup, 401 errors | `auth-setup.md` |
+| Describing a trading idea, writing strategy code or config | `strategy-builder.md` |
+| Wants to run a backtest or asking about results | `backtesting.md` |
+| Wants to deploy live, manage credentials | `deployment.md` |
+| Asking about a running bot, logs, balance, wants to stop | `monitoring.md` |
 
-**Compound flows** (e.g. "build strategy -> backtest -> deploy"): load `multi-skills/skills/strategy-builder.md` first, then `multi-skills/skills/backtesting.md`, then `multi-skills/skills/deployment.md`.
+**Compound flows** (e.g. "build strategy -> backtest -> deploy"): load `strategy-builder.md` first, then `backtesting.md`, then `deployment.md`.
 
 Read the sub-skill file before proceeding with phase-specific work.
 
