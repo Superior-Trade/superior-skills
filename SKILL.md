@@ -1,6 +1,6 @@
 ---
 name: Superior Trade
-version: 3.0.6
+version: 3.0.7
 updated: 2026-03-24
 description: "Backtest and deploy trading strategies on Superior Trade's managed cloud."
 homepage: https://account.superior.trade
@@ -276,10 +276,11 @@ Before `PUT /v2/deployment/{id}/status` → `{"action":"start"}`:
 1. **Credentials stored** — `GET /v2/deployment/{id}` → `credentials_status: "stored"`. If not, call `POST /v2/deployment/{id}/credentials`.
 2. **Identify wallets** — `GET /v2/deployment/{id}/credentials` → note `wallet_address` (agent wallet) and `agent_wallet_address`.
 3. **Funds available in main wallet** — Check the **main wallet** (platform-managed trading wallet), NOT the agent wallet. Agent wallet having $0 is normal. Query `clearinghouseState` + `spotClearinghouseState` on the public Hyperliquid info endpoint (read-only, sends public wallet address only — no secrets). **Then verify `stake_amount × max_open_trades` fits within the available balance.** The exchange reserves a small fee buffer (~1%), so set `stake_amount` to no more than ~95% of `balance / max_open_trades` to avoid silent trade rejections.
+4. **No existing positions/orders** — Check `clearinghouseState` for open positions on the main wallet. If positions or orders exist, show the user details (pair, side, size, PnL) and ask them to close before deploying — leftover positions can block new entries or cause unexpected margin usage.
 
-**For dry-run deployments (no credentials):** Skip steps 1–3 — the deployment runs in simulation mode without real funds.
+**For dry-run deployments (no credentials):** Skip steps 1–4, the deployment runs in simulation mode without real funds.
 
-4. **Pair is tradeable** — `POST https://api.hyperliquid.xyz/info` → `{"type":"meta"}` for standard perps, or `{"type":"meta", "dex":"xyz"}` (or the relevant dex name) for HIP3 pairs. Verify the coin name exists in the `universe` array.
+5. **Pair is tradeable** — `POST https://api.hyperliquid.xyz/info` → `{"type":"meta"}` for standard perps, or `{"type":"meta", "dex":"xyz"}` (or the relevant dex name) for HIP3 pairs. Verify the coin name exists in the `universe` array.
 
 Do NOT skip any step or assume it passed without the API call.
 
@@ -411,6 +412,18 @@ Response: `{ "id": "string", "status": "string", "replicas": 1, "available_repli
 #### GET `/v2/deployment/{id}/credentials` — Credential Info
 
 Does NOT return private keys. Response: `{ "id", "credentials_status": "stored | missing", "exchange", "wallet_address", "wallet_source": "main_trading_wallet | provided", "wallet_type": "main_wallet | agent_wallet", "agent_wallet_address" }`. If missing: `{ "credentials_status": "missing" }`.
+
+#### POST `/v2/deployment/{id}/exit` — Exit All Positions
+
+Closes all open orders and liquidates all open positions. Deployment must be **stopped** first.
+
+```json
+// Response (200)
+{ "id": "string", "status": "string", "orders_cancelled": 3, "positions_closed": 2 }
+
+// Response (400) — deployment still running or credentials missing
+{ "error": "invalid_request", "message": "..." }
+```
 
 #### DELETE `/v2/deployment/{id}`
 
