@@ -1,6 +1,6 @@
 ---
 name: Superior Trade
-version: 3.0.7
+version: 3.0.8
 updated: 2026-03-24
 description: "Backtest and deploy trading strategies on Superior Trade's managed cloud."
 homepage: https://account.superior.trade
@@ -234,7 +234,7 @@ If the agent fails the same task 3+ times (e.g. strategy code keeps crashing, ba
 ### Backtest Workflow
 
 1. Build config + strategy code from user requirements
-2. `POST /v2/backtesting` — create
+2. `POST /v2/backtesting` — create (time range is auto-selected: picks a suitable duration based on the timeframe, starting from the earliest available candle data)
 3. `PUT /v2/backtesting/{id}/status` with `{"action": "start"}`
 4. Poll `GET /v2/backtesting/{id}/status` every 10s until `completed` or `failed` (1–10 min)
 5. `GET /v2/backtesting/{id}` — fetch full results; download `result_url` for detailed JSON
@@ -292,7 +292,7 @@ Do NOT skip any step or assume it passed without the API call.
 
 ```json
 // Request
-{ "config": {}, "code": "string (Python strategy)", "timerange": { "start": "YYYY-MM-DD", "end": "YYYY-MM-DD" } }
+{ "config": {}, "code": "string (Python strategy)" }
 
 // Response (201)
 { "id": "string", "status": "pending", "message": "Backtest created. Call PUT /:id/status with action \"start\" to begin." }
@@ -319,7 +319,6 @@ Response: `{ "id": "string", "status": "pending | running | completed | failed",
   "id": "string",
   "config": {},
   "code": "string",
-  "timerange": { "start": "YYYY-MM-DD", "end": "YYYY-MM-DD" },
   "status": "pending | running | completed | failed",
   "results": null,
   "result_url": "https://storage.googleapis.com/... (signed URL, valid 7 days)",
