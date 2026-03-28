@@ -43,9 +43,9 @@ When a user needs to get their API key:
 
 1. Go to https://account.superior.trade
 2. Sign up (email or wallet)
-3. Complete onboarding — a trading wallet is created for you and shown on the dashboard
+3. Complete onboarding — a trading wallet is created for you and shown in your account
 4. Deposit USDC to your wallet address (on Arbitrum)
-5. Create an API key (`st_live_...`) from the dashboard
+5. Create an API key (`st_live_...`) from your account settings
 6. Add it as `SUPERIOR_TRADE_API_KEY` in your agent's environment/credential settings
 
 If the `SUPERIOR_TRADE_API_KEY` env var is already set, use it directly in the `x-api-key` header without prompting the user.
@@ -112,7 +112,7 @@ Do NOT start a live deployment without an explicit affirmative response.
 
 Superior Trade uses Hyperliquid's native **agent wallet** pattern. Users do NOT need their own Hyperliquid wallet — everything is managed by the platform. If a user asks "how do I link my Hyperliquid account," the answer is: **they don't need one** — a trading wallet is created at signup.
 
-1. **Main wallet** — a platform-managed trading wallet created for each user at signup. Holds the funds on Hyperliquid. Users deposit USDC to this address via the dashboard at https://account.superior.trade.
+1. **Main wallet** — a platform-managed trading wallet created for each user at signup. Holds the funds on Hyperliquid. Users deposit USDC to this address (shown at https://account.superior.trade).
 2. **Agent wallet** — a platform-managed signing key authorized via Hyperliquid's `approveAgent`. Signs trades against the main wallet's balance.
 
 **Key facts:**
@@ -128,7 +128,7 @@ Superior Trade uses Hyperliquid's native **agent wallet** pattern. Users do NOT 
 
 The agent cannot move or bridge funds — the user handles this independently outside the skill:
 
-1. The user deposits USDC to their platform wallet address (shown on their dashboard at https://account.superior.trade)
+1. The user deposits USDC to their platform wallet address (shown at https://account.superior.trade)
 2. The agent wallet signs trades against this balance — no internal transfers needed
 
 Always check the **main wallet** (platform-managed trading wallet), NOT the agent wallet.
@@ -415,6 +415,8 @@ Does NOT return private keys. Response: `{ "id", "credentials_status": "stored |
 #### POST `/v2/deployment/{id}/exit` — Exit All Positions
 
 Closes all open orders and liquidates all open positions. Deployment must be **stopped** first.
+
+**Before calling this endpoint**, check `clearinghouseState` for the wallet's open positions. Show the user each position's pair, side, size, and unrealized PnL, then ask for explicit confirmation — this action is irreversible and closes at market price.
 
 ```json
 // Response (200)
