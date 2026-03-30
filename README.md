@@ -4,6 +4,8 @@ OpenClaw-compatible trading skill and execution layer for agents.
 
 Turn natural-language trading intent into structured strategies, backtests, and live deployment on [Superior Trade](https://www.superior.trade/).
 
+[Website](https://www.superior.trade/) · [Discord](https://discord.gg/aVZR8cCxcR) · [Twitter](https://x.com/SuperiorTrade_)
+
 ## Why this repo exists
 
 Most AI agents can talk about trading. Very few can reliably turn a trading idea into validated, executable code.

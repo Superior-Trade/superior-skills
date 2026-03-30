@@ -234,7 +234,7 @@ If the agent fails the same task 3+ times (e.g. strategy code keeps crashing, ba
 ### Backtest Workflow
 
 1. Build config + strategy code from user requirements
-2. `POST /v2/backtesting` — create (time range is auto-selected: picks a suitable duration based on the timeframe, starting from the earliest available candle data)
+2. `POST /v2/backtesting` — create with config, code, and timerange (`{ "start": "YYYY-MM-DD", "end": "YYYY-MM-DD" }`). If the dates are invalid or omitted, the server picks a suitable duration based on the timeframe.
 3. `PUT /v2/backtesting/{id}/status` with `{"action": "start"}`
 4. Poll `GET /v2/backtesting/{id}/status` every 10s until `completed` or `failed` (1–10 min)
 5. `GET /v2/backtesting/{id}` — fetch full results; download `result_url` for detailed JSON
@@ -292,11 +292,13 @@ Do NOT skip any step or assume it passed without the API call.
 
 ```json
 // Request
-{ "config": {}, "code": "string (Python strategy)" }
+{ "config": {}, "code": "string (Python strategy)", "timerange": { "start": "YYYY-MM-DD", "end": "YYYY-MM-DD" } }
 
 // Response (201)
 { "id": "string", "status": "pending", "message": "Backtest created. Call PUT /:id/status with action \"start\" to begin." }
 ```
+
+`timerange` specifies the historical period to backtest against. Dates are validated against available data — the server returns `invalid_timerange` if the requested period is outside what's available. If invalid dates are provided, the server falls back to a dynamic range based on the timeframe.
 
 #### PUT `/v2/backtesting/{id}/status` — Start Backtest
 
