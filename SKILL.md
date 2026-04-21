@@ -1,7 +1,7 @@
 ---
 name: Superior Trade
-version: 3.0.8
-updated: 2026-03-24
+version: 4.0.0
+updated: 2026-04-21
 description: "Backtest and deploy trading strategies on Superior Trade's managed cloud."
 homepage: https://account.superior.trade
 source: https://github.com/Superior-Trade
@@ -133,7 +133,7 @@ The agent cannot move or bridge funds — the user handles this independently ou
 
 Always check the **main wallet** (platform-managed trading wallet), NOT the agent wallet.
 
-These are read-only, unauthenticated queries to Hyperliquid's public API. The wallet address sent is public on-chain data — not a secret. No API keys, private keys, or auth tokens are included.
+**Balance query for master account (single deployment):**
 
 ```
 POST https://api.hyperliquid.xyz/info
@@ -141,7 +141,65 @@ POST https://api.hyperliquid.xyz/info
 {"type":"spotClearinghouseState","user":"<MAIN_WALLET_ADDRESS>"}
 ```
 
+**Balance query for master account (multi-strategy with sub-accounts):**
+
+When the master account has sub-accounts, its total balance is the sum of its own perp + spot balances PLUS all sub-account balances. Query both:
+
+```
+POST https://api.hyperliquid.xyz/info
+{"type":"subAccounts2","user":"<MAIN_WALLET_ADDRESS>"}
+```
+
+Sub-account balances are included in the master account's total — funds allocated to sub-accounts are not available for master deployments. Always query `subAccounts2` first when the user has sub-accounts, then sum across all sub-account `spotState.balances` and `dexToClearinghouseState` entries to get the true total balance.
+
 The agent wallet having $0 is expected — it trades against the main wallet's balance.
+
+### Sub-Accounts for Multi-Strategy Trading
+
+Users with **≥ $100,000 USD in lifetime trading volume** on Hyperliquid can create sub-accounts to run multiple independent strategies simultaneously, each with its own isolated balance and positions.
+
+**Key facts:**
+
+- Sub-accounts inherit the master account's collateral (USDC, USDE, USDT0, USDH)
+- Each sub-account can have its own deployment with isolated margin/positions
+- Maximum 10 sub-accounts per master account
+- Sub-accounts use **unified account mode** — spot and perps share a single balance
+
+**Sub-account query** (read-only):
+
+```
+POST https://api.hyperliquid.xyz/info
+{"type":"subAccounts2","user":"<MAIN_WALLET_ADDRESS>"}
+```
+
+Returns each sub-account's name, address, `abstraction` mode ("unifiedAccount" or legacy), spot balances, and perps state (`dexToClearinghouseState`). Always verify the sub-account has `abstraction: "unifiedAccount"` — legacy sub-accounts cannot be used with unified margin strategies.
+
+**Balance composition for a sub-account:**
+
+- **Perps account value:** from `dexToClearinghouseState[0][1].marginSummary.accountValue`
+- **Perps withdrawable:** from `dexToClearinghouseState[0][1].withdrawable`
+- **Spot USDC:** from `spotState.balances` where `coin === "USDC"`
+
+The sub-account's total balance = perps account value + spot USDC (in unified mode these merge).
+
+### Sub-Account Operations
+
+**Transfer from main account to sub-account:**
+```
+{"type":"sendAsset","destination":"<SUB_ACCOUNT_ADDRESS>","sourceDex":"spot","destinationDex":"spot","token":"USDC","amount":1000}
+```
+
+**Transfer from sub-account back to main account:**
+```
+{"type":"sendAsset","fromSubAccount":"<SUB_ACCOUNT_ADDRESS>","destination":"<MASTER_WALLET_ADDRESS>","sourceDex":"spot","destinationDex":"spot","token":"USDC","amount":500}
+```
+
+**Enable unified account mode on a sub-account:**
+```
+{"type":"userSetAbstraction","user":"<SUB_ACCOUNT_ADDRESS>","abstraction":"unifiedAccount"}
+```
+
+When creating a sub-account via the API, unified mode is set automatically after creation by calling `userSetAbstraction` with `abstraction: "unifiedAccount"`.
 
 ### Hyperliquid Credentials
 
@@ -259,7 +317,7 @@ After status = `completed`, download the `result_url` JSON. Present these key me
 
 1. `POST /v2/deployment` with config, code, name
 2. **Ask the user: live or dry-run?**
-   - **Live:** `POST /v2/deployment/{id}/credentials` with `{ "exchange": "hyperliquid" }` — server assigns wallet automatically
+   - **Live:** `POST /v2/deployment/{id}/credentials` with `{ "exchange": "hyperliquid", "wallet_address": "0x...", "subaccount_address": "0x..." }` — `wallet_address` and `subaccount_address` are optional; server assigns wallet automatically if omitted
    - **Dry-run:** Skip the credentials step — the deployment runs in simulation mode (no real funds)
 3. Run the pre-deployment checklist
 4. Show the deployment confirmation summary and wait for explicit user confirmation
@@ -275,7 +333,7 @@ Before `PUT /v2/deployment/{id}/status` → `{"action":"start"}`:
 
 1. **Credentials stored** — `GET /v2/deployment/{id}` → `credentials_status: "stored"`. If not, call `POST /v2/deployment/{id}/credentials`.
 2. **Identify wallets** — `GET /v2/deployment/{id}/credentials` → note `wallet_address` (agent wallet) and `agent_wallet_address`.
-3. **Funds available in main wallet** — Check the **main wallet** (platform-managed trading wallet), NOT the agent wallet. Agent wallet having $0 is normal. Query `clearinghouseState` + `spotClearinghouseState` on the public Hyperliquid info endpoint (read-only, sends public wallet address only — no secrets). **Then verify `stake_amount × max_open_trades` fits within the available balance.** The exchange reserves a small fee buffer (~1%), so set `stake_amount` to no more than ~95% of `balance / max_open_trades` to avoid silent trade rejections.
+3. **Funds available** — Check the **main wallet** (platform-managed trading wallet), NOT the agent wallet. Agent wallet having $0 is normal. Query `clearinghouseState` + `spotClearinghouseState` for single deployments. If the master account has sub-accounts, also query `subAccounts2` and sum total balance across master + all sub-accounts — funds allocated to sub-accounts are not available to the master. **Then verify `stake_amount × max_open_trades` fits within the available balance.** The exchange reserves a small fee buffer (~1%), so set `stake_amount` to no more than ~95% of `balance / max_open_trades` to avoid silent trade rejections.
 4. **No existing positions/orders** — Check `clearinghouseState` for open positions on the main wallet. If positions or orders exist, show the user details (pair, side, size, PnL) and ask them to close before deploying — leftover positions can block new entries or cause unexpected margin usage.
 
 **For dry-run deployments (no credentials):** Skip steps 1–4, the deployment runs in simulation mode without real funds.
@@ -373,6 +431,7 @@ Cancels if running and deletes. Response: `{ "message": "Backtest deleted" }`
   "pods": [{ "name": "string", "status": "Running", "restarts": 0 }],
   "credentials_status": "stored | missing",
   "exchange": "hyperliquid",
+  "subaccount_address": "0x... | undefined",
   "deployment_name": "string",
   "namespace": "string",
   "created_at": "ISO8601",
@@ -390,13 +449,14 @@ Response: `{ "id": "string", "status": "string", "replicas": 1, "available_repli
 
 ```json
 // Request
-{ "exchange": "hyperliquid", "wallet_address": "0x... (optional)" }
+{ "exchange": "hyperliquid", "wallet_address": "0x... (optional)", "subaccount_address": "0x... (optional)" }
 
 // Response (200)
 {
   "id": "string", "credentials_status": "stored", "exchange": "hyperliquid",
   "wallet_address": "0x...", "wallet_source": "main_trading_wallet | provided",
-  "agent_wallet_address": "0x... | undefined", "updated_at": "ISO8601"
+  "agent_wallet_address": "0x... | undefined",
+  "subaccount_address": "0x... | undefined", "updated_at": "ISO8601"
 }
 ```
 
@@ -412,7 +472,7 @@ Response: `{ "id": "string", "status": "string", "replicas": 1, "available_repli
 
 #### GET `/v2/deployment/{id}/credentials` — Credential Info
 
-Does NOT return private keys. Response: `{ "id", "credentials_status": "stored | missing", "exchange", "wallet_address", "wallet_source": "main_trading_wallet | provided", "wallet_type": "main_wallet | agent_wallet", "agent_wallet_address" }`. If missing: `{ "credentials_status": "missing" }`.
+Does NOT return private keys. Response: `{ "id", "credentials_status": "stored | missing", "exchange", "wallet_address", "wallet_source": "main_trading_wallet | provided", "wallet_type": "main_wallet | agent_wallet", "agent_wallet_address", "subaccount_address" }`. If missing: `{ "credentials_status": "missing" }`.
 
 #### POST `/v2/deployment/{id}/exit` — Exit All Positions
 
@@ -621,6 +681,7 @@ For DCA strategies: distinguish trades from orders ("X trades, Y buy orders, Z s
 - **"Analyzing candle"** — bot is checking strategy conditions on the latest candle
 - **"Buying"/"Selling"** — trade execution
 - **Rate limit warnings** — reduce API calls, consider stopping if persistent
+- **Websocket disconnection ("Couldn't reuse watch…falling back to REST api")** — normal and expected. The bot automatically reconnects via REST API. Trading is **not** affected. Do not treat this as an error or suggest redeployment.
 
 ### Diagnosing Zero-Trade Deployments
 
