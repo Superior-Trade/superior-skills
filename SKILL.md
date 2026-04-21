@@ -182,24 +182,58 @@ Returns each sub-account's name, address, `abstraction` mode ("unifiedAccount" o
 
 The sub-account's total balance = perps account value + spot USDC (in unified mode these merge).
 
-### Sub-Account Operations
+### Hyperliquid Authorize-and-Send API
 
-**Transfer from main account to sub-account:**
+`POST https://api.superior.trade/v2/authorize-and-send/hyperliquid`
+
+A unified endpoint for Hyperliquid operations. All requests use `{"type": "...", ...}` body. Requires `x-api-key` header.
+
+**Supported operation types:**
+
+| Operation | Description |
+| --------- | ----------- |
+| `createSubAccount` | Create a new sub-account |
+| `subAccountTransfer` | Transfer between main and sub-account |
+| `sendAsset` | Move assets (main→sub, sub→main, or sub→sub) |
+| `userSetAbstraction` | Set account mode (unified/legacy) |
+| `subAccountModify` | Modify sub-account settings |
+
+**Create sub-account:**
+```json
+{"type":"createSubAccount","user":"<MAIN_WALLET_ADDRESS>","name":"My Strategy"}
 ```
+
+**Sub-account transfer (main → sub):**
+```json
+{"type":"subAccountTransfer","from":"<MAIN_WALLET_ADDRESS>","to":"<SUB_ACCOUNT_ADDRESS>","token":"USDC","amount":1000}
+```
+
+**Sub-account transfer (sub → main):**
+```json
+{"type":"subAccountTransfer","from":"<SUB_ACCOUNT_ADDRESS>","to":"<MAIN_WALLET_ADDRESS>","token":"USDC","amount":500}
+```
+
+**Transfer via sendAsset (main → sub):**
+```json
 {"type":"sendAsset","destination":"<SUB_ACCOUNT_ADDRESS>","sourceDex":"spot","destinationDex":"spot","token":"USDC","amount":1000}
 ```
 
-**Transfer from sub-account back to main account:**
-```
+**Transfer via sendAsset (sub → main):**
+```json
 {"type":"sendAsset","fromSubAccount":"<SUB_ACCOUNT_ADDRESS>","destination":"<MASTER_WALLET_ADDRESS>","sourceDex":"spot","destinationDex":"spot","token":"USDC","amount":500}
 ```
 
-**Enable unified account mode on a sub-account:**
-```
+**Set unified account mode on a sub-account:**
+```json
 {"type":"userSetAbstraction","user":"<SUB_ACCOUNT_ADDRESS>","abstraction":"unifiedAccount"}
 ```
 
 When creating a sub-account via the API, unified mode is set automatically after creation by calling `userSetAbstraction` with `abstraction: "unifiedAccount"`.
+
+**Modify sub-account:**
+```json
+{"type":"subAccountModify","user":"<SUB_ACCOUNT_ADDRESS>","action":"disable"}
+```
 
 ### Hyperliquid Credentials
 
@@ -469,6 +503,32 @@ Response: `{ "id": "string", "status": "string", "replicas": 1, "available_repli
 **Credential update procedure:** (1) Stop the deployment → (2) Delete the deployment → (3) Create a new deployment with same config/code → (4) Store new credentials.
 
 **One-wallet-per-deployment rule:** Each deployment uses one wallet and runs as an isolated container. For multiple strategies on the same wallet, use multiple deployments pointing to the same wallet address.
+
+### Portfolio Exit
+
+#### POST `/v2/portfolio/hyperliquid/exit` — Close Positions and Repatriate Funds
+
+Closes ALL open positions and repatriates all funds from a sub-account back to the main wallet in a single call. Use this to cleanly exit a sub-account deployment and return funds to the master account.
+
+**Requires:** `subaccount_address` in request body.
+
+```json
+// Request
+{ "subaccount_address": "0x..." }
+
+// Response (200)
+{ "message": "Exit successful", "positions_closed": 2, "orders_cancelled": 0 }
+
+// Response (400) — invalid subaccount
+{ "error": "invalid_request", "message": "..." }
+```
+
+This endpoint:
+1. Cancels all open orders on the sub-account
+2. Closes all open positions at market price
+3. Transfers all remaining funds (USDC, USDE, USDT0, USDH) back to the main wallet
+
+Use this instead of manually closing positions and transferring funds — it's a single atomic operation.
 
 #### GET `/v2/deployment/{id}/credentials` — Credential Info
 
