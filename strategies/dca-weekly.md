@@ -9,7 +9,7 @@ updated: 2026-05-07
 
 ## When to use
 
-A user asks to "buy X every week", "DCA into BTC", "scheduled buy", "accumulator", "monthly buy", or any variation that means *open a position once, then keep adding to it on a calendar cadence*. **Not** for "buy when price drops" — that's grid / range-fade (see `strategy-grid-range-fade`).
+A user asks to "buy X every week", "DCA into BTC", "scheduled buy", "accumulator", "monthly buy", or any variation that means *open a position once, then keep adding to it on a calendar cadence*. **Not** for "buy when price drops" — that's grid trading (see `strategies/grid-trading.md`).
 
 ## What it does
 

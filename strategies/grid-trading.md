@@ -1,5 +1,5 @@
 ---
-name: grid-range-fade
+name: grid-trading
 description: Use when writing a profit-laddered position-adjustment strategy on Superior Trade — anything described as a grid bot, range fade, range harvest, ladder buy, scaling-in, pyramiding, or "buy more when it dips and sell partials when it rallies". Note this is a profit-driven ladder, not a true 20-rung order-book grid; explain that limitation when the user asks for true grid trading.
 version: 0.1.0
 updated: 2026-05-07

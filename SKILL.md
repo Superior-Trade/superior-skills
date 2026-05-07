@@ -67,11 +67,11 @@ These pages live alongside this skill in the same repo. Read the matching one wh
 ### Strategy templates (Hyperliquid Freqtrade)
 
 - [DCA · Weekly buy](https://github.com/Superior-Trade/superior-skills/blob/main/strategies/dca-weekly.md) — scheduled buys via `adjust_trade_position` (works on calendar trigger, not price)
-- [Grid · Range fade](https://github.com/Superior-Trade/superior-skills/blob/main/strategies/grid-range-fade.md) — profit-laddered position adjustment + partial take-profits
-- [Funding · Negative-rate harvest](https://github.com/Superior-Trade/superior-skills/blob/main/strategies/funding-harvest.md) — capture funding when shorts are paying longs (the most profitable template in our audit)
-- [Momentum · Breakout](https://github.com/Superior-Trade/superior-skills/blob/main/strategies/momentum-breakout.md) — Donchian-style breakout with trailing stop (regime-sensitive)
-- [Mean Reversion · BB bands](https://github.com/Superior-Trade/superior-skills/blob/main/strategies/mean-reversion-bands.md) — 2.5σ Bollinger fade with ADX regime filter
-- [Scalp · Momentum bursts](https://github.com/Superior-Trade/superior-skills/blob/main/strategies/scalp-momentum.md) — fast in/out on RSI thrust + volume spike (structural template; tune before deploying)
+- [Grid trading](https://github.com/Superior-Trade/superior-skills/blob/main/strategies/grid-trading.md) — profit-laddered position adjustment + partial take-profits
+- [Funding rate arbitrage](https://github.com/Superior-Trade/superior-skills/blob/main/strategies/funding-rate-arbitrage.md) — capture funding when shorts are paying longs (the most profitable template in our audit)
+- [Breakout](https://github.com/Superior-Trade/superior-skills/blob/main/strategies/breakout.md) — Donchian-style breakout with trailing stop (regime-sensitive)
+- [Mean reversion](https://github.com/Superior-Trade/superior-skills/blob/main/strategies/mean-reversion.md) — 2.5σ Bollinger fade with ADX regime filter
+- [Scalping](https://github.com/Superior-Trade/superior-skills/blob/main/strategies/scalping.md) — fast in/out on RSI thrust + volume spike (structural template; tune before deploying)
 
 ### Exchange-specific guides
 

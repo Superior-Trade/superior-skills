@@ -1,5 +1,5 @@
 ---
-name: mean-reversion-bands
+name: mean-reversion
 description: Use when writing a Bollinger-band mean-reversion strategy on Superior Trade — anything described as mean reversion, BB bands, oversold bounce, fade, range trade, ADX low, sigma extension. Note signals are very rare on 2.5σ over 100-bar windows; widen if the user wants more trades.
 version: 0.1.0
 updated: 2026-05-07
@@ -108,7 +108,7 @@ class BtcMeanReversionStrategy(IStrategy):
 
 - **Volatility-filtered entries**: add `atr_pct = atr_14 / close` and gate entries on `atr_pct > 0.005` to avoid entries in dead-quiet markets where the bands are too tight.
 - **2.0σ bands**: ~10× more signals; reduces win rate but materially improves Sharpe statistics on most pairs.
-- **Pair this with `populate_exit_trend` partial closes** at `bb_mid` and full close at `bb_upper` (requires `adjust_trade_position`, see `strategy-grid-range-fade`).
+- **Pair this with `populate_exit_trend` partial closes** at `bb_mid` and full close at `bb_upper` (requires `adjust_trade_position`, see `strategies/grid-trading.md`).
 - **Multi-pair scan**: ranging happens at different times on different pairs. Top 20 perp scan increases trade count without lowering signal quality.
 
 ## Common pitfalls

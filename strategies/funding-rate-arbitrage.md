@@ -1,5 +1,5 @@
 ---
-name: funding-harvest
+name: funding-rate-arbitrage
 description: Use when writing a funding-rate-driven perp strategy on Superior Trade — anything described as funding harvest, funding arbitrage, funding rate carry, negative funding, paid to long, paid to short, basis trade. The strategy reads Hyperliquid hourly funding via `dp.get_pair_dataframe(candle_type="funding_rate")`, which is automatically downloaded for backtests.
 version: 0.1.0
 updated: 2026-05-07
