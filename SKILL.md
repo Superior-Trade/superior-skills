@@ -1,7 +1,7 @@
 ---
 name: Superior Trade
-version: 4.3.0
-updated: 2026-05-07
+version: 4.3.1
+updated: 2026-05-08
 description: "Backtest and deploy trading strategies on Superior Trade's managed cloud."
 homepage: https://account.superior.trade
 source: https://github.com/Superior-Trade
