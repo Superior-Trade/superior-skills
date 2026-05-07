@@ -66,10 +66,22 @@ Copy [`SKILL.md`](./SKILL.md) from this repo directly into your agent's skill di
 
 ## What is in this repo
 
-| File | Description |
+| Path | Description |
 |---|---|
-| [`SKILL.md`](./SKILL.md) | The published skill file — full API reference, strategy authoring guide, and agent operating rules |
-| [`README.md`](./README.md) | This file |
+| [`SKILL.md`](./SKILL.md) | The published skill file — full API reference, strategy authoring guide, and agent operating rules. Hyperliquid is the default exchange. |
+| [`strategies/`](./strategies) | One file per template strategy with reference code + backtest results from the internal audit. Read the matching one when the user describes that pattern. |
+| [`strategies/dca-weekly.md`](./strategies/dca-weekly.md) | Scheduled buys via `adjust_trade_position` — weekly / daily / monthly DCA. |
+| [`strategies/grid-range-fade.md`](./strategies/grid-range-fade.md) | Profit-laddered position adjustment — closest you can get to a grid bot inside Freqtrade's one-trade-per-pair model. |
+| [`strategies/funding-harvest.md`](./strategies/funding-harvest.md) | Negative-funding long capture using `dp.get_pair_dataframe(candle_type="funding_rate")`. The most profitable template in the audit. |
+| [`strategies/momentum-breakout.md`](./strategies/momentum-breakout.md) | Donchian-style breakout with trailing stop. |
+| [`strategies/mean-reversion-bands.md`](./strategies/mean-reversion-bands.md) | Bollinger-band fade with ADX regime filter. |
+| [`strategies/scalp-momentum.md`](./strategies/scalp-momentum.md) | High-turnover RSI + volume-thrust template (structural reference, tune before deploying). |
+| [`exchanges/`](./exchanges) | Per-exchange divergences from the Hyperliquid default. |
+| [`exchanges/aerodrome.md`](./exchanges/aerodrome.md) | Aerodrome / Base spot AMM swap execution — no order book, no leverage, wallet-balance-driven. |
+| [`optimizations/`](./optimizations) | Process and cost guides that apply across strategies. |
+| [`optimizations/backtesting.md`](./optimizations/backtesting.md) | Backtest best practices — window selection, trade-count thresholds, exit-reason mix, parameter sweeps, walk-forward, zero-trade escalation. |
+| [`optimizations/fees-optimizations.md`](./optimizations/fees-optimizations.md) | Freqtrade × Hyperliquid fee budgeting — order types, entry/exit pricing, maker vs taker, builder code fee, edge-to-fee ratio. |
+| [`README.md`](./README.md) | This file. |
 
 ## Core capabilities
 

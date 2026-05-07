@@ -1,5 +1,5 @@
 ---
-name: aerodrome-trading
+name: aerodrome
 description: Use when creating, validating, backtesting, deploying, sizing, or troubleshooting Aerodrome/Base spot trading strategies through the Superior Trade API, especially Freqtrade configs using exchange.name "aerodrome", AERO/USDC or CHECK/USDC pairs, AMM market swaps, wallet/gas balance checks, no-orderbook pricing, or Aerodrome live deployment safety.
 ---
 
