@@ -73,6 +73,8 @@ Copy [`SKILL.md`](./SKILL.md) from this repo directly into your agent's skill di
 | [`strategies/dca-weekly.md`](./strategies/dca-weekly.md) | Scheduled buys via `adjust_trade_position` — weekly / daily / monthly DCA. |
 | [`strategies/grid-trading.md`](./strategies/grid-trading.md) | Profit-laddered position adjustment — closest you can get to a grid bot inside Freqtrade's one-trade-per-pair model. |
 | [`strategies/funding-rate-arbitrage.md`](./strategies/funding-rate-arbitrage.md) | Negative-funding long capture using `dp.get_pair_dataframe(candle_type="funding_rate")`. The most profitable template in the audit. |
+| [`strategies/funding-squeeze.md`](./strategies/funding-squeeze.md) | Long when funding is deeply negative AND price is rising — rides the squeeze rather than waiting for carry mean-reversion. Sibling of `funding-rate-arbitrage`. |
+| [`strategies/basis-arb.md`](./strategies/basis-arb.md) | Directional long-perp leg of a spot–perp basis trade. Honest framing — Freqtrade can't run the hedged form; this is the directional positioning signal only. |
 | [`strategies/breakout.md`](./strategies/breakout.md) | Donchian-style breakout with trailing stop. |
 | [`strategies/mean-reversion.md`](./strategies/mean-reversion.md) | Bollinger-band fade with ADX regime filter. |
 | [`strategies/scalping.md`](./strategies/scalping.md) | High-turnover RSI + volume-thrust template (structural reference, tune before deploying). |

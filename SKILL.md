@@ -1,6 +1,6 @@
 ---
 name: Superior Trade
-version: 4.3.1
+version: 4.4.0
 updated: 2026-05-08
 description: "Backtest and deploy trading strategies on Superior Trade's managed cloud."
 homepage: https://account.superior.trade
@@ -69,6 +69,8 @@ These pages live alongside this skill in the same repo. Read the matching one wh
 - [DCA · Weekly buy](https://github.com/Superior-Trade/superior-skills/blob/main/strategies/dca-weekly.md) — scheduled buys via `adjust_trade_position` (works on calendar trigger, not price)
 - [Grid trading](https://github.com/Superior-Trade/superior-skills/blob/main/strategies/grid-trading.md) — profit-laddered position adjustment + partial take-profits
 - [Funding rate arbitrage](https://github.com/Superior-Trade/superior-skills/blob/main/strategies/funding-rate-arbitrage.md) — capture funding when shorts are paying longs (the most profitable template in our audit)
+- [Funding squeeze](https://github.com/Superior-Trade/superior-skills/blob/main/strategies/funding-squeeze.md) — long when funding is deeply negative AND price is rising; ride the squeeze instead of waiting for carry mean-reversion
+- [Basis arbitrage (directional)](https://github.com/Superior-Trade/superior-skills/blob/main/strategies/basis-arb.md) — long perp when spot–perp basis flips negative with funding negative (directional read; not a hedged arb)
 - [Breakout](https://github.com/Superior-Trade/superior-skills/blob/main/strategies/breakout.md) — Donchian-style breakout with trailing stop (regime-sensitive)
 - [Mean reversion](https://github.com/Superior-Trade/superior-skills/blob/main/strategies/mean-reversion.md) — 2.5σ Bollinger fade with ADX regime filter
 - [Scalping](https://github.com/Superior-Trade/superior-skills/blob/main/strategies/scalping.md) — fast in/out on RSI thrust + volume spike (structural template; tune before deploying)
