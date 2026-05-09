@@ -1,7 +1,7 @@
 ---
 name: Superior Trade
-version: 4.4.0
-updated: 2026-05-08
+version: 4.4.4
+updated: 2026-05-09
 description: "Backtest and deploy trading strategies on Superior Trade's managed cloud."
 homepage: https://account.superior.trade
 source: https://github.com/Superior-Trade
@@ -360,6 +360,17 @@ If the agent fails the same task 3+ times (e.g. strategy code keeps crashing, ba
 7. If failed, check `GET /v2/backtesting/{id}/logs`
 8. To cancel: `DELETE /v2/backtesting/{id}`
 
+#### Backtest Wallet and Stake Sizing
+
+Backtests are simulations. Do **not** size a backtest from the user's live wallet by default; use simulated capital to evaluate the strategy. Only mirror the user's current wallet if they explicitly ask for a live-wallet simulation.
+
+- `dry_run_wallet` is the total simulated wallet inventory by asset. It is an object/map, not a scalar. Examples: `{ "USDC": 1000 }`, `{ "USDC": 100, "BTC": 0.1 }`.
+- `stake_amount` is the amount the backtest/bot may allocate per trade slot. A numeric value is fixed stake per entry slot; `"unlimited"` divides the simulated wallet across `max_open_trades` slots.
+- If using fixed stake, set `dry_run_wallet` to the total simulated balances so PnL is measured against the correct capital base. Example: a $50 USDC simulation with $45 usable per trade uses `stake_amount: 45` and `dry_run_wallet: { "USDC": 50 }`.
+- For standard perps, keep fixed `stake_amount` at or below ~90% of `USDC / max_open_trades`; for HIP-3 assets, use ~70% because fees and isolated-margin buffers are higher.
+- Never combine `stake_amount: "unlimited"` with `max_open_trades: -1`. When stake is unlimited, `max_open_trades` must be a finite positive integer so the wallet can be divided across slots.
+- For DCA/grid/scaling strategies that use `position_adjustment_enable` and `adjust_trade_position`, `stake_amount` may be fixed or `"unlimited"`. If using `"unlimited"`, you must control the initial entry size in `custom_stake_amount`; otherwise the first entry can consume all available capital. In either mode, `dry_run_wallet` must cover the maximum laddered exposure, not just the first entry.
+
 #### Parameter Sweeps (recommended for first-pass backtests)
 
 For the **first** backtest of any new idea on a given pair, do not submit a single config. Submit a **3-variant sweep** that varies ONE parameter, run all 3 in parallel, then compare horizontally.
@@ -656,11 +667,15 @@ The config object is a Freqtrade trading bot configuration. Do not include `api_
   "exchange": { "name": "hyperliquid", "pair_whitelist": ["BTC/USDC:USDC"] },
   "stake_currency": "USDC",
   "stake_amount": 100,
+  "dry_run_wallet": { "USDC": 1000 },
   "timeframe": "5m",
   "max_open_trades": 3,
+  "minimal_roi": { "0": 100.0 },
   "stoploss": -0.1,
   "trading_mode": "futures",
   "margin_mode": "cross",
+  "entry_pricing": { "price_side": "same", "price_last_balance": 0.0 },
+  "exit_pricing": { "price_side": "same", "price_last_balance": 0.0 },
   "pairlists": [{ "method": "StaticPairList" }]
 }
 ```
@@ -679,20 +694,22 @@ Same as futures but omit `trading_mode` and `margin_mode`. Pairs use `BTC/USDC` 
   },
   "stake_currency": "USDC",
   "stake_amount": 100,
+  "dry_run_wallet": { "USDC": 1000 },
   "timeframe": "15m",
   "max_open_trades": 3,
+  "minimal_roi": { "0": 100.0 },
   "stoploss": -0.05,
   "trading_mode": "futures",
   "margin_mode": "isolated",
-  "entry_pricing": { "price_side": "other" },
-  "exit_pricing": { "price_side": "other" },
+  "entry_pricing": { "price_side": "same", "price_last_balance": 0.0 },
+  "exit_pricing": { "price_side": "same", "price_last_balance": 0.0 },
   "pairlists": [{ "method": "StaticPairList" }]
 }
 ```
 
 #### Additional Config Fields
 
-Beyond the examples above: `minimal_roi` (minutes-to-ROI map, e.g. `{"0": 0.10, "30": 0.05}`), `trailing_stop` (boolean), `trailing_stop_positive` (number), `entry_pricing.price_side` / `exit_pricing.price_side` (`"ask"`, `"bid"`, `"same"`, `"other"`), `pairlists` (`StaticPairList`, `VolumePairList`, etc.).
+Other common config fields include `trailing_stop` (boolean), `trailing_stop_positive` (number), `entry_pricing.price_side` / `exit_pricing.price_side` (`"ask"`, `"bid"`, `"same"`, `"other"`), and `pairlists` (`StaticPairList`, `VolumePairList`, etc.). Use `"same"` as the default pricing side. `"other"` crosses the spread for faster fills and is mainly appropriate when intentionally modeling market-order-style execution.
 
 ### Strategy Code Template
 
@@ -772,7 +789,7 @@ Single-output functions (RSI, SMA, EMA, ATR, ADX) return a Series and can be ass
 
 The engine enforces **one open trade per pair**. A second `enter_long = 1` while a position is open is silently rejected. Anything that wants to "buy more of the same thing" — DCA, scaling-in, grid laddering, weekly buys — must use `adjust_trade_position`, not repeated entry signals.
 
-Three flags must be set together. Missing any one makes the strategy silently fail or burn the entire stake on the first entry:
+Config and strategy code must be set together. If using dynamic stake, keep `max_open_trades` finite and divide the initial entry in `custom_stake_amount` so later adjustment orders have wallet room.
 
 ```python
 class MyStrategy(IStrategy):
@@ -786,7 +803,9 @@ class MyStrategy(IStrategy):
         return proposed_stake / self.max_dca_multiplier
 ```
 
-`adjust_trade_position` is called every candle while a trade is open. Return positive = add stake, negative = partial close, `None` = do nothing.
+Fixed `stake_amount` is also valid with position adjustment, but the wallet must still have enough free balance for the planned additional entries. With `"unlimited"` stake, `custom_stake_amount` is mandatory to avoid allocating the whole wallet to the initial order.
+
+`adjust_trade_position` is called very frequently while a trade is open: in dry-run/live it runs every bot loop (about every 5 seconds by default), while backtesting runs it once per candle (`timeframe` or `timeframe_detail`). Return positive = add stake, negative = partial close, `None` = do nothing. Keep the logic strict and always check the last filled order / open orders so the bot cannot re-enter repeatedly while one condition remains true.
 
 **Pattern A — Profit-driven DCA (averaging down):**
 
@@ -845,19 +864,29 @@ A true 20-rung grid (multiple simultaneous orders at distinct price levels) is N
 
 ### Funding Rate (Futures Only)
 
-For "harvest negative funding" / "long when shorts pay longs" / any funding-aware strategy, the historical funding rate is **automatically downloaded** for backtest. Do not poll Hyperliquid's REST API from inside the strategy. Hyperliquid pays funding hourly:
+For "harvest negative funding" / "long when shorts pay longs" / any funding-aware strategy, the historical funding rate is **automatically downloaded** for backtest. Do not poll Hyperliquid's REST API from inside the strategy. Hyperliquid pays funding hourly. The example below assumes the strategy timeframe is `1h` or faster; do not merge a faster funding timeframe into a slower strategy timeframe without first resampling/alignment:
 
 ```python
+from freqtrade.strategy import merge_informative_pair
+
+
 def populate_indicators(self, dataframe: pd.DataFrame, metadata: dict) -> pd.DataFrame:
+    funding_tf = "1h"
     funding = self.dp.get_pair_dataframe(
         pair=metadata["pair"],
-        timeframe="1h",
+        timeframe=funding_tf,
         candle_type="funding_rate",
     )
     if not funding.empty and "open" in funding.columns:
-        f = funding[["date", "open"]].rename(columns={"open": "funding_rate"})
-        dataframe = dataframe.merge(f, on="date", how="left")
-        dataframe["funding_rate"] = dataframe["funding_rate"].ffill().fillna(0.0)
+        funding = funding[["date", "open"]].rename(columns={"open": "funding_rate"})
+        dataframe = merge_informative_pair(
+            dataframe,
+            funding,
+            self.timeframe,
+            funding_tf,
+            ffill=True,
+        )
+        dataframe["funding_rate"] = dataframe[f"funding_rate_{funding_tf}"].fillna(0.0)
         dataframe["funding_apr"] = dataframe["funding_rate"] * 24 * 365
     else:
         dataframe["funding_rate"] = 0.0
@@ -871,13 +900,15 @@ Available only for futures pairs (`BTC/USDC:USDC`), not spot.
 
 The schema validator rejects payloads that omit any of these — **even when the strategy class declares its own equivalent**:
 
-- `entry_pricing` and `exit_pricing` — both required. Safe default: `{"price_side": "same"}`.
+- `entry_pricing` and `exit_pricing` — both required. Safe default: `{"price_side": "same", "price_last_balance": 0.0}`.
 - `minimal_roi` — required at the config level. Use `{"0": 100.0}` to effectively disable config-level ROI and let the strategy's own exit logic run.
-- `dry_run_wallet` — must be `≥ stake_amount × 1.01`. Default is 1000; with `stake_amount: 1000` the backtest fails at startup with "Starting balance smaller than stake_amount". For DCA / grid strategies that ladder up to `max_dca_multiplier × initial`, set `dry_run_wallet ≈ stake_amount × 10`.
+- `dry_run_wallet` — for backtests, this is the total simulated wallet balances by asset, e.g. `{ "USDC": 1000 }` or `{ "USDC": 100, "BTC": 0.1 }`. It must contain enough `stake_currency` balance for the configured `stake_amount` and `max_open_trades`; with `stake_amount: 1000`, use at least `{ "USDC": 1010 }` or the backtest can fail at startup. For DCA / grid strategies that use `position_adjustment_enable` and `adjust_trade_position`, size the `USDC` balance to cover the full planned ladder plus fees.
 
 ### `stake_amount: "unlimited"` Warning
 
-`"unlimited"` bypasses minimum-order validation. The bot starts but **silently executes zero trades** if balance is insufficient — no error, just heartbeats. Always use explicit numeric `stake_amount` with small balances (<$50).
+`"unlimited"` bypasses minimum-order validation. The bot starts but **silently executes zero trades** if balance is insufficient — no error, just heartbeats. For simple single-entry strategies, prefer explicit numeric `stake_amount` with small balances (<$50). For strategies using `position_adjustment_enable` and `adjust_trade_position`, fixed stake is valid if enough wallet balance remains for planned adds; if `stake_amount` is `"unlimited"`, use `custom_stake_amount` to divide the first entry so there is room for later adds.
+
+Do **not** set both `stake_amount: "unlimited"` and `max_open_trades: -1`. Use a finite positive `max_open_trades` instead. For single-pair DCA/grid/scaling strategies, use `max_open_trades: 1`; repeated same-pair entries come from `adjust_trade_position`, not extra open-trade slots.
 
 | Stoploss | Effective minimum |
 | -------- | ----------------- |
@@ -905,7 +936,7 @@ For DCA strategies: distinguish trades from orders ("X trades, Y buy orders, Z s
 Check in order:
 
 1. **Main wallet balance** — agent wallet $0 is normal; check the platform-managed main wallet
-2. **`stake_amount`** — if `"unlimited"`, redeploy with explicit numeric amount slightly below balance
+2. **`stake_amount`** — for simple single-entry strategies, if `"unlimited"` with a small balance, redeploy with an explicit numeric amount slightly below balance. For `position_adjustment_enable` / `adjust_trade_position` strategies, either use fixed stake with enough wallet room for planned adds, or keep `stake_amount: "unlimited"` and reduce `custom_stake_amount`, ladder count, or total planned exposure.
 3. **Credentials** — verify `credentials_status: "stored"` and `WALLET_ADDRESS` in startup logs
 4. **Strategy conditions** — check if entry conditions are met on recent candles
 5. **Logs** — check for rate limits, exchange rejections, pair errors
