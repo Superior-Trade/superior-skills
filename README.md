@@ -78,6 +78,11 @@ Copy [`SKILL.md`](./SKILL.md) from this repo directly into your agent's skill di
 | [`strategies/breakout.md`](./strategies/breakout.md) | Donchian-style breakout with trailing stop. |
 | [`strategies/mean-reversion.md`](./strategies/mean-reversion.md) | Bollinger-band fade with ADX regime filter. |
 | [`strategies/scalping.md`](./strategies/scalping.md) | High-turnover RSI + volume-thrust template (structural reference, tune before deploying). |
+| [`intelligence/`](./intelligence) | Live market scan — bucket-based ranking (squeeze / stealth / coiled / basis) across Hyperliquid alts + HIP-3. Read the README first. |
+| [`intelligence/buckets.md`](./intelligence/buckets.md) | The four bucket framework with formulas + AI Critic concerns per bucket. |
+| [`intelligence/api.md`](./intelligence/api.md) | `/v2/intelligence/scan` and `/v2/intelligence/setup/{pair}` endpoint reference. |
+| [`intelligence/workflow.md`](./intelligence/workflow.md) | Scan → setup → backtest → deploy recipes. |
+| [`intelligence/glossary.md`](./intelligence/glossary.md) | Plain-English definitions for funding, OI, basis, etc. |
 | [`exchanges/`](./exchanges) | Per-exchange divergences from the Hyperliquid default. |
 | [`exchanges/aerodrome.md`](./exchanges/aerodrome.md) | Aerodrome / Base spot AMM swap execution — no order book, no leverage, wallet-balance-driven. |
 | [`optimizations/`](./optimizations) | Process and cost guides that apply across strategies. |
