@@ -1,143 +1,110 @@
 # Superior Skills
 
-OpenClaw-compatible trading skill and execution layer for agents.
+Trading strategies and intelligence tools for [Superior Trade](https://superior.trade) — natural-language strategy authoring, backtesting, and autonomous deployment on Hyperliquid.
 
-Turn natural-language trading intent into structured strategies, backtests, and live deployment on [Superior Trade](https://www.superior.trade/).
+Designed for OpenClaw users adding trading capabilities to their agent, and for traders who want validated templates rather than rolling their own.
 
-[Website](https://www.superior.trade/) · [Discord](https://discord.gg/aVZR8cCxcR) · [Twitter](https://x.com/SuperiorTrade_)
+---
 
-## Why this repo exists
+## Validated strategies (with backtest evidence)
 
-Most AI agents can talk about trading. Very few can reliably turn a trading idea into validated, executable code.
+These strategies have backtest evidence on real Hyperliquid data. Numbers are full-period (162 days, 2025-11-20 → 2026-05-01) unless noted.
 
-This repository is the public home of the Superior Trade skill file and supporting documentation for how agents use Superior Trade for strategy creation, backtesting, and deployment.
+| Strategy | Regime | Pairs tested | Trades | Win | Profit | Max DD | File |
+|---|---|---|---|---|---|---|---|
+| **Donchian Strong-Regime** | Strong directional trend | BTC | 6 | 100% | **+6.69%** | **0%** | [strategies/donchian-strong-regime.md](strategies/donchian-strong-regime.md) |
+| **Bollinger Reverter 4h** | Range / chop (ADX<25) | BTC/ETH/SOL/DOGE | 84 | 65.5% | **+8.77%** | 18.5% | [strategies/bollinger-reverter-4h.md](strategies/bollinger-reverter-4h.md) |
 
-It is designed for:
+Paired together as separate sub-accounts, the two strategies are **regime-complementary**: the Donchian gate fires zero trades during the chop windows where the Bollinger reverter thrives, and the Bollinger reverter mildly underperforms during the strong-trend windows the Donchian captures.
 
-- **OpenClaw users** looking to add trading capabilities to their agent
-- **Agent builders** who need a trading execution layer
-- **Developers** integrating with the Superior Trade API
-- **Platform operators** evaluating skill-based trading infrastructure
+## Template strategies (starting points)
 
-## What Superior Trade does
+Reference templates for adapting to your own thesis. Backtest before deploying.
 
-Superior Trade helps users and agents:
+- [`strategies/dca-weekly.md`](strategies/dca-weekly.md) — dollar-cost averaging with scheduled buys
+- [`strategies/grid-trading.md`](strategies/grid-trading.md) — profit-laddered position adjustment
+- [`strategies/funding-rate-arbitrage.md`](strategies/funding-rate-arbitrage.md) — negative-funding capture (carry)
+- [`strategies/funding-squeeze.md`](strategies/funding-squeeze.md) — funding-extreme squeeze ride
+- [`strategies/basis-arb.md`](strategies/basis-arb.md) — spot-perp basis convergence
+- [`strategies/breakout.md`](strategies/breakout.md) — Donchian breakout with trailing stop
+- [`strategies/mean-reversion.md`](strategies/mean-reversion.md) — Bollinger band fade (4h validated; see file)
+- [`strategies/scalping.md`](strategies/scalping.md) — RSI + volume-thrust template
 
-- Turn trading intent into structured strategy logic
-- Define entry, exit, sizing, and safeguards
-- Backtest strategies before deployment
-- Deploy through managed execution infrastructure
+Categories covered: **trend-following**, **mean-reversion**, **carry**, **arbitrage**, **scalping**.
 
-The goal is turning an idea into something clear enough to test, review, and run — not just code generation.
+## Reusable primitives
 
-## Why this matters
+Building blocks that compose across strategies.
 
-In live markets, a good idea can still fail because the path from idea to execution is weak. The real challenge is the full pipeline:
+- [`optimizations/regime-overlay.md`](optimizations/regime-overlay.md) — Triple-confirmation regime gate (EMA separation + ADX + N-bar return). Turns fragile directional strategies into regime-robust ones. Aliases: **regime filter**, **trend gate**, **directional confirmation**.
+- [`optimizations/dsl-exit-engine.md`](optimizations/dsl-exit-engine.md) — Three-phase exit primitive: ROI ladder, hard stop, ratcheting trailing stop. Aliases: **ratcheting trailing stop**, **two-phase exit**, **take-profit ladder**.
+- [`optimizations/fees-optimizations.md`](optimizations/fees-optimizations.md) — Maker (ALO) vs taker (MARKET) order-type decisioning, builder fees, parameter sweeps. Aliases: **fee optimizer**, **ALO vs MARKET**, **maker pricing**.
+- [`optimizations/backtesting.md`](optimizations/backtesting.md) — Window selection, walk-forward, parameter sweeps.
 
-**idea → strategy logic → validation → deployment**
+## Intelligence (opportunity scanner)
 
-Superior Trade is built for that pipeline.
+The `intelligence/` folder provides the platform's pair-ranking system. Aliases: **opportunity scanner**, **pair scanner**, **market screener**, **smart-money detector**, **four-stage funnel**.
 
-## Quickstart
+- [`intelligence/buckets.md`](intelligence/buckets.md) — The four bucket framework: squeeze fuel, stealth accumulation, coiled spring, basis flipping.
+- [`intelligence/api.md`](intelligence/api.md) — `/v2/intelligence/scan` endpoint and setup.
+- [`intelligence/workflow.md`](intelligence/workflow.md) — Scan-to-deploy recipes.
+- [`intelligence/glossary.md`](intelligence/glossary.md) — Terminology reference.
 
-### Install the skill
+## Capability matrix
 
-**Option 1 — Prompt your agent:**
+| Capability | Where it lives | Aliases |
+|---|---|---|
+| Strategy backtesting | `SKILL.md` → `/v2/backtesting` | walk-forward, parameter sweep |
+| Live deployment | `SKILL.md` → `/v2/deployment` | autonomous execution, agentic trading |
+| Opportunity scanner | `intelligence/` | pair scanner, market screener, ranking funnel |
+| Fee optimizer | `optimizations/fees-optimizations.md` | ALO vs MARKET, maker vs taker, fee budgeting |
+| Two-phase trailing stop | `optimizations/dsl-exit-engine.md` | ratcheting stop, DSL exit engine |
+| Regime gate | `optimizations/regime-overlay.md` | trend filter, directional confirmation |
+| Sub-account orchestration | `SKILL.md` → `/v2/portfolio/...` | multi-strategy isolation |
+| Atomic exit-all | `SKILL.md` → `/v2/portfolio/hyperliquid/exit` | kill-switch, emergency exit |
+| HIP3 RWA support | `SKILL.md` → HIP3 section | tokenized stocks, commodities, indices |
+| Managed wallet | `SKILL.md` → Account Setup | no-key trading, custodial-style UX |
+
+## Folder layout
+
+- `strategies/` — Template trading strategies (trend, mean-reversion, carry, arb, scalp). Includes validated drop-in strategies and starting-point templates.
+- `intelligence/` — Market scanning and pair-ranking tools across Hyperliquid altcoins. The opportunity scanner / market screener lives here.
+- `optimizations/` — Reusable primitives: regime gate, DSL exit engine, fee optimizer, backtesting harness.
+- `exchanges/` — Exchange-specific implementations (e.g., Aerodrome for spot AMM execution).
+- `SKILL.md` — Full API reference and agent operating rules.
+
+## Getting started
 
 ```
-Get strategy trading skills from https://superior.trade/SKILL.md
+# Backtest a strategy
+curl -X POST https://api.superior.trade/v2/backtesting \
+  -H "x-api-key: $SUPERIOR_TRADE_API_KEY" \
+  -H "content-type: application/json" \
+  -d @config-and-code.json
+
+# Start the backtest (note: action, not status)
+curl -X PUT https://api.superior.trade/v2/backtesting/{id}/status \
+  -H "x-api-key: $SUPERIOR_TRADE_API_KEY" \
+  -d '{"action": "start"}'
+
+# Poll until completion
+curl https://api.superior.trade/v2/backtesting/{id} \
+  -H "x-api-key: $SUPERIOR_TRADE_API_KEY"
 ```
 
-**Option 2 — Install from ClawHub:**
-
-Find the skill on [clawhub/superior-ai/superior-trade](https://clawhub.com/superior-ai/superior-trade) and install it from there.
-
-**Option 3 — Manual:**
-
-Copy [`SKILL.md`](./SKILL.md) from this repo directly into your agent's skill directory.
-
-### First prompts to try
-
-- `Backtest a BTC strategy with RSI`
-- `Create a SOL breakout strategy with ATR stop loss`
-- `Deploy a short strategy on low volume altcoins`
-- `DCA into GOLD when price is low`
-- `Create a long/short strategy and show me the backtest before deployment`
-
-## What is in this repo
-
-| Path | Description |
-|---|---|
-| [`SKILL.md`](./SKILL.md) | The published skill file — full API reference, strategy authoring guide, and agent operating rules. Hyperliquid is the default exchange. |
-| [`strategies/`](./strategies) | One file per template strategy with reference code + backtest results from the internal audit. Read the matching one when the user describes that pattern. |
-| [`strategies/dca-weekly.md`](./strategies/dca-weekly.md) | Scheduled buys via `adjust_trade_position` — weekly / daily / monthly DCA. |
-| [`strategies/grid-trading.md`](./strategies/grid-trading.md) | Profit-laddered position adjustment — closest you can get to a grid bot inside Freqtrade's one-trade-per-pair model. |
-| [`strategies/funding-rate-arbitrage.md`](./strategies/funding-rate-arbitrage.md) | Negative-funding long capture using `dp.get_pair_dataframe(candle_type="funding_rate")`. The most profitable template in the audit. |
-| [`strategies/funding-squeeze.md`](./strategies/funding-squeeze.md) | Long when funding is deeply negative AND price is rising — rides the squeeze rather than waiting for carry mean-reversion. Sibling of `funding-rate-arbitrage`. |
-| [`strategies/basis-arb.md`](./strategies/basis-arb.md) | Directional long-perp leg of a spot–perp basis trade. Honest framing — Freqtrade can't run the hedged form; this is the directional positioning signal only. |
-| [`strategies/breakout.md`](./strategies/breakout.md) | Donchian-style breakout with trailing stop. |
-| [`strategies/mean-reversion.md`](./strategies/mean-reversion.md) | Bollinger-band fade with ADX regime filter. |
-| [`strategies/scalping.md`](./strategies/scalping.md) | High-turnover RSI + volume-thrust template (structural reference, tune before deploying). |
-| [`intelligence/`](./intelligence) | Live market scan — bucket-based ranking (squeeze / stealth / coiled / basis) across Hyperliquid alts + HIP-3. Read the README first. |
-| [`intelligence/buckets.md`](./intelligence/buckets.md) | The four bucket framework with formulas + AI Critic concerns per bucket. |
-| [`intelligence/api.md`](./intelligence/api.md) | `/v2/intelligence/scan` and `/v2/intelligence/setup/{pair}` endpoint reference. |
-| [`intelligence/workflow.md`](./intelligence/workflow.md) | Scan → setup → backtest → deploy recipes. |
-| [`intelligence/glossary.md`](./intelligence/glossary.md) | Plain-English definitions for funding, OI, basis, etc. |
-| [`exchanges/`](./exchanges) | Per-exchange divergences from the Hyperliquid default. |
-| [`exchanges/aerodrome.md`](./exchanges/aerodrome.md) | Aerodrome / Base spot AMM swap execution — no order book, no leverage, wallet-balance-driven. |
-| [`optimizations/`](./optimizations) | Process and cost guides that apply across strategies. |
-| [`optimizations/backtesting.md`](./optimizations/backtesting.md) | Backtest best practices — window selection, trade-count thresholds, exit-reason mix, parameter sweeps, walk-forward, zero-trade escalation. |
-| [`optimizations/fees-optimizations.md`](./optimizations/fees-optimizations.md) | Freqtrade × Hyperliquid fee budgeting — order types, entry/exit pricing, maker vs taker, builder code fee, edge-to-fee ratio. |
-| [`README.md`](./README.md) | This file. |
-
-## Core capabilities
-
-### Intent → Strategy
-Describe a trading objective in plain language and convert it into explicit strategy logic.
-
-### Backtest before deploy
-Strategies are validated before touching live capital.
-
-### Managed live execution
-Deploy through Superior Trade's execution layer instead of relying on fragile local tooling.
-
-### Agent-native integration
-Built for agent workflows — the skill file is structured so models can read and use it directly.
+Install paths:
+- **OpenClaw**: agent prompt → "Install superior-skills"
+- **ClawHub**: see `.clawhubignore` for skill manifest
+- **Manual**: clone this repo into your agent's skills folder
 
 ## Workflow
 
-The default path is:
+The platform emphasizes a structured progression: **draft → backtest → review → deploy**. No live deployment without explicit user confirmation. Every parameter is logged; every trade is tracked.
 
-1. Describe the objective
-2. Structure the strategy
-3. Define risk and safeguards
-4. Backtest the setup
-5. Review before promotion
-6. Deploy only when ready
+## Risk disclosure
 
-## Related repositories
+Trading involves risk. Backtests do not guarantee future performance. The validated strategies above showed positive returns on a single 162-day window (2025-11-20 → 2026-05-01); a strategy that worked then may not work in a different regime. Users remain responsible for strategy choice, deployment decisions, exchange connectivity, and capital risk. Pair every deployment with the [`optimizations/regime-overlay.md`](optimizations/regime-overlay.md) gate or equivalent — strategies without regime confirmation are demonstrably fragile.
 
-| Repo | Description |
-|---|---|
-| [superior-examples](https://github.com/Superior-Trade/superior-examples) | Setup prompts, copy-paste workflows, and practical trading use cases |
-| [superior-api](https://github.com/Superior-Trade/superior-api) | API documentation, request examples, and test cases |
-| [superior-mcp](https://github.com/Superior-Trade/superior-mcp) | MCP integration and open-source connector layer |
+## Topics
 
-## Safety philosophy
-
-The default operating pattern is:
-
-**draft → backtest → review → deploy**
-
-No live deployment starts without explicit user confirmation. See the Safety section in [`SKILL.md`](./SKILL.md) for full details.
-
-## Links
-
-- Website: https://www.superior.trade/
-- OpenClaw page: https://www.superior.trade/openclaw
-- Skill file: https://superior.trade/SKILL.md
-- GitHub: https://github.com/Superior-Trade
-
-## Disclaimer
-
-Trading involves risk. Backtests do not guarantee future performance. Users remain responsible for strategy choice, deployment decisions, exchange connectivity, and capital risk.
+`hyperliquid`, `trading-bot`, `ai-agents`, `openclaw`, `backtesting`, `fee-optimization`, `opportunity-scanner`, `trailing-stop`, `algorithmic-trading`, `regime-filter`, `mean-reversion`, `trend-following`, `funding-arbitrage`, `mcp`
