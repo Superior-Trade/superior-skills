@@ -902,7 +902,32 @@ The schema validator rejects payloads that omit any of these — **even when the
 
 - `entry_pricing` and `exit_pricing` — both required. Safe default: `{"price_side": "same", "price_last_balance": 0.0}`.
 - `minimal_roi` — required at the config level. Use `{"0": 100.0}` to effectively disable config-level ROI and let the strategy's own exit logic run.
-- `dry_run_wallet` — for backtests, this is the total simulated wallet balances by asset, e.g. `{ "USDC": 1000 }` or `{ "USDC": 100, "BTC": 0.1 }`. It must contain enough `stake_currency` balance for the configured `stake_amount` and `max_open_trades`; with `stake_amount: 1000`, use at least `{ "USDC": 1010 }` or the backtest can fail at startup. For DCA / grid strategies that use `position_adjustment_enable` and `adjust_trade_position`, size the `USDC` balance to cover the full planned ladder plus fees.
+- `dry_run_wallet` — must contain enough `stake_currency` balance for the configured `stake_amount` and `max_open_trades`, **plus ~50% buffer** to cover fees, funding payments, and slippage. For `stake_amount: 1000` and `max_open_trades: 1`, use at least `{ "USDC": 1500 }`. For futures multi-pair setups, scale up by `max_open_trades`. Tighter buffers (≤10%) cause silent signal rejection mid-run. For DCA / grid strategies that ladder up to `max_dca_multiplier × initial`, set `dry_run_wallet ≈ stake_amount × 10`. See the "Backtest Wallet and Stake Sizing" section above for the full sizing rationale.
+
+### Choosing a `minimal_roi` shape
+
+The class-level `minimal_roi = {"0": 100.0}` pattern fully disables ROI take-profit.
+Use it ONLY when your strategy has a signal-driven exit (`populate_exit_trend`) that
+fires on most bars where the trade should close — typically trend-follow strategies
+with structural exits like "break of N-bar high" or trailing stops.
+
+For mean-reversion, scalp, range, and any strategy where wins are small (under ~3%),
+use an explicit ROI ladder:
+
+```python
+minimal_roi = {
+    "0":    0.025,   # take 2.5% immediately if available
+    "240":  0.015,   # 1.5% after 4 hours (relevant for 1h+ timeframes)
+    "720":  0.005,   # 0.5% after 12 hours
+    "1440": 0,       # breakeven after 24 hours — close any open position
+}
+```
+
+The keys are **minutes since trade open**. Tiers decay so stale trades close at breakeven
+rather than sitting forever. Without an ROI ladder, mean-reversion strategies give back
+wins waiting for a signal exit that may never come.
+
+See `optimizations/dsl-exit-engine.md` for full Phase 0 / Phase 1 / Phase 2 guidance.
 
 ### `stake_amount: "unlimited"` Warning
 
