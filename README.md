@@ -4,6 +4,8 @@ Trading strategies and intelligence tools for [Superior Trade](https://superior.
 
 Designed for OpenClaw users adding trading capabilities to their agent, and for traders who want validated templates rather than rolling their own.
 
+[Website](https://superior.trade) · [Discord](https://discord.gg/aVZR8cCxcR) · [Twitter](https://x.com/SuperiorTrade_)
+
 ---
 
 ## Validated strategies (with backtest evidence)
