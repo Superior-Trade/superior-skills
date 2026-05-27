@@ -56,6 +56,7 @@ The `intelligence/` folder provides the platform's pair-ranking system. Aliases:
 
 | Capability | Where it lives | Aliases |
 |---|---|---|
+| Account status | `SKILL.md` → `/v2/account/status` | setup readiness, agent wallet, builder fee |
 | Strategy backtesting | `SKILL.md` → `/v2/backtesting` | walk-forward, parameter sweep |
 | Live deployment | `SKILL.md` → `/v2/deployment` | autonomous execution, agentic trading |
 | Opportunity scanner | `intelligence/` | pair scanner, market screener, ranking funnel |
@@ -63,6 +64,7 @@ The `intelligence/` folder provides the platform's pair-ranking system. Aliases:
 | Two-phase trailing stop | `optimizations/dsl-exit-engine.md` | ratcheting stop, DSL exit engine |
 | Regime gate | `optimizations/regime-overlay.md` | trend filter, directional confirmation |
 | Sub-account orchestration | `SKILL.md` → `/v2/portfolio/...` | multi-strategy isolation |
+| Hyperliquid deposit | `SKILL.md` → `/v2/portfolio/hyperliquid/deposit` | Arbitrum USDC deposit, fund trading |
 | Atomic exit-all | `SKILL.md` → `/v2/portfolio/hyperliquid/exit` | kill-switch, emergency exit |
 | HIP3 RWA support | `SKILL.md` → HIP3 section | tokenized stocks, commodities, indices |
 | Managed wallet | `SKILL.md` → Account Setup | no-key trading, custodial-style UX |

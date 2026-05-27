@@ -1,7 +1,7 @@
 ---
 name: Superior Trade
-version: 4.4.6
-updated: 2026-05-18
+version: 4.4.8
+updated: 2026-05-27
 description: "Backtest and deploy trading strategies on Superior Trade's managed cloud."
 homepage: https://account.superior.trade
 source: https://github.com/Superior-Trade
@@ -10,10 +10,10 @@ auth:
   type: api_key
   env: SUPERIOR_TRADE_API_KEY
   header: x-api-key
-  scope: "Read-write the user's own backtests and deployments. Can start live trading deployments that execute real trades with the user's platform-managed trading wallet. Cannot withdraw funds, export private keys, or access other users' data."
+  scope: "Read-write the user's own backtests and deployments. Can start live trading deployments that execute real trades with the user's platform-managed trading wallet and can deposit native Arbitrum USDC from that wallet into Hyperliquid. Cannot withdraw funds, export private keys, or access other users' data."
 env:
   - name: SUPERIOR_TRADE_API_KEY
-    description: "Superior Trade API key (x-api-key header). Obtained at https://account.superior.trade. Can create/manage backtests and deployments including live trading. Cannot withdraw funds, export private keys, or access other users' data. Users do not need their own Hyperliquid wallet."
+    description: "Superior Trade API key (x-api-key header). Obtained at https://account.superior.trade. Can create/manage backtests and deployments including live trading, and can deposit native Arbitrum USDC from the user's platform-managed wallet into Hyperliquid. Cannot withdraw funds, export private keys, or access other users' data. Users do not need their own Hyperliquid wallet."
     required: true
     type: api_key
 externalEndpoints:
@@ -44,9 +44,10 @@ When a user needs to get their API key:
 1. Go to https://account.superior.trade
 2. Sign up (email or wallet)
 3. Complete onboarding — a trading wallet is created for you and shown in your account
-4. Deposit USDC to your wallet address (on Arbitrum)
+4. Fund the platform trading wallet with native USDC on Arbitrum One using the user's own capital
 5. Create an API key (`st_live_...`) from your account settings
 6. Add it as `SUPERIOR_TRADE_API_KEY` in your agent's environment/credential settings
+7. If the wallet's USDC is still on Arbitrum, use `POST /v2/portfolio/hyperliquid/deposit` to deposit it into Hyperliquid before live trading
 
 If the `SUPERIOR_TRADE_API_KEY` env var is already set, use it directly in the `x-api-key` header without prompting the user.
 
@@ -101,14 +102,15 @@ This skill requires exactly **one credential**: an `x-api-key` header value. The
 7. **Prefer user-friendly language** over internal technical names when speaking conversationally. Say "strategy", "the bot", or "the trading engine" instead of referencing internal class names or infrastructure details. This is a UX preference — if the user asks about the underlying technology, answer honestly (the platform uses Freqtrade for strategy execution on Hyperliquid).
 8. **NEVER** send users to `app.superior.trade` — the correct URL is `https://account.superior.trade`
 
-> **Key scope notice:** The API key can create and start live trading deployments that execute real trades using the user's platform-managed trading wallet. It cannot withdraw funds, export private keys, or move money. Users should confirm scope with Superior Trade and backtest their strategy first.
+> **Key scope notice:** The API key can create and start live trading deployments that execute real trades using the user's platform-managed trading wallet. It can also initiate native Arbitrum USDC deposits from that wallet into Hyperliquid. It cannot withdraw funds, export private keys, or move arbitrary assets/chains. Users should confirm scope with Superior Trade and backtest their strategy first.
 
-| Can do                                                                           | Cannot do                                               |
-| -------------------------------------------------------------------------------- | ------------------------------------------------------- |
-| Create, list, delete backtests                                                   | Access other users' data                                |
-| Create, start, stop, delete deployments (including live trading with real funds) | Withdraw funds from any wallet                          |
-| Trigger server-side credential resolution (no user secrets collected)            | Export or view private keys                             |
-| View deployment logs, status, wallet metadata                                    | Transfer or bridge funds (user does this independently) |
+| Can do                                                                                     | Cannot do                                          |
+| ------------------------------------------------------------------------------------------ | -------------------------------------------------- |
+| Create, list, delete backtests                                                             | Access other users' data                           |
+| Create, start, stop, delete deployments (including live trading with real funds)           | Withdraw funds from any wallet                     |
+| Trigger server-side credential resolution (no user secrets collected)                      | Export or view private keys                        |
+| View deployment logs, status, wallet metadata                                              | Move unsupported assets or use unsupported chains  |
+| Deposit native Arbitrum USDC from the user's platform wallet into Hyperliquid via the API | Bridge from external wallets or withdraw from Hyperliquid |
 
 ### Live Deployment Confirmation
 
@@ -136,7 +138,7 @@ Do NOT start a live deployment without an explicit affirmative response.
 
 Superior Trade uses Hyperliquid's native **agent wallet** pattern. Users do NOT need their own Hyperliquid wallet — everything is managed by the platform. If a user asks "how do I link my Hyperliquid account," the answer is: **they don't need one** — a trading wallet is created at signup.
 
-1. **Main wallet** — a platform-managed trading wallet created for each user at signup. Holds the funds on Hyperliquid. Users deposit USDC to this address (shown at https://account.superior.trade).
+1. **Main wallet** — a platform-managed trading wallet created for each user at signup. Users fund this address with native USDC on Arbitrum One, then deposit that USDC into Hyperliquid using the API when needed. The address is shown at https://account.superior.trade.
 2. **Agent wallet** — a platform-managed signing key authorized via Hyperliquid's `approveAgent`. Signs trades against the main wallet's balance.
 
 **Key facts:**
@@ -145,15 +147,21 @@ Superior Trade uses Hyperliquid's native **agent wallet** pattern. Users do NOT 
 - Each user has one agent wallet; all deployments share it
 - The credentials endpoint returns `wallet_type: "agent_wallet"` for auto-resolved wallets
 - Always check the **main wallet's** balance, not the agent wallet's
-- The API has no transfer/fund-routing endpoint — you cannot move funds via the API
+- The API can deposit native Arbitrum USDC from the user's platform-managed wallet into Hyperliquid via `POST /v2/portfolio/hyperliquid/deposit`
+- The API cannot withdraw from Hyperliquid or bridge unsupported assets/chains
 - **NEVER tell users to deposit to the agent wallet address**
 
-### Funding and Balance Checks
+### Funding, Deposits, and Balance Checks
 
-The agent cannot move or bridge funds — the user handles this independently outside the skill:
+Funding is a two-stage flow:
 
-1. The user deposits USDC to their platform wallet address (shown at https://account.superior.trade)
-2. The agent wallet signs trades against this balance — no internal transfers needed
+1. The user funds their platform-managed trading wallet with native USDC on Arbitrum One using their own capital. The wallet address is shown at https://account.superior.trade.
+2. The agent can call `POST /v2/portfolio/hyperliquid/deposit` to transfer native Arbitrum USDC from that platform wallet to Hyperliquid Bridge2.
+3. After the deposit confirms, the agent wallet signs trades against the main wallet's Hyperliquid balance.
+
+Before calling the deposit endpoint, tell the user that this sends real USDC from their platform wallet into Hyperliquid and ask for explicit confirmation. If the platform wallet does not have enough Arbitrum USDC, tell the user they need to add more of their own capital to the platform account before the agent can deposit or trade.
+
+**Supported deposit only:** native USDC on Arbitrum One to Hyperliquid. Do not suggest this endpoint for Ethereum mainnet USDC, bridged USDC variants, Base, Optimism, other assets, external user wallets, or withdrawals.
 
 Always check the **main wallet** (platform-managed trading wallet), NOT the agent wallet.
 
@@ -444,18 +452,68 @@ Before `PUT /v2/deployment/{id}/status` → `{"action":"start"}`:
 
 **For live deployments (credentials stored):**
 
-1. **Credentials stored** — `GET /v2/deployment/{id}` → `credentials_status: "stored"`. If not, call `POST /v2/deployment/{id}/credentials`.
-2. **Identify wallets** — `GET /v2/deployment/{id}/credentials` → note `wallet_address` (agent wallet) and `agent_wallet_address`.
-3. **Funds available** — Check the **main wallet** (platform-managed trading wallet), NOT the agent wallet. Agent wallet having $0 is normal. Query `clearinghouseState` + `spotClearinghouseState` for single deployments. If the master account has sub-accounts, also query `subAccounts2` and sum total balance across master + all sub-accounts — funds allocated to sub-accounts are not available to the master. **Then verify `stake_amount × max_open_trades` fits within the available balance.** The exchange reserves a small fee buffer (~1%), so set `stake_amount` to no more than ~95% of `balance / max_open_trades` to avoid silent trade rejections.
-4. **No existing positions/orders** — Check `clearinghouseState` for open positions on the main wallet. If positions or orders exist, show the user details (pair, side, size, PnL) and ask them to close before deploying — leftover positions can block new entries or cause unexpected margin usage.
+1. **Account ready** — `GET /v2/account/status` verifies account tier, referral status, builder fee configuration, and agent wallet readiness. If it returns `agent_wallet_not_ready` or `builder_not_configured`, stop and tell the user setup is incomplete. If the returned message references an old `app.superior.trade` URL, still direct the user to https://account.superior.trade.
+2. **Credentials stored** — `GET /v2/deployment/{id}` → `credentials_status: "stored"`. If not, call `POST /v2/deployment/{id}/credentials`.
+3. **Identify wallets** — `GET /v2/deployment/{id}/credentials` → note `wallet_address` (agent wallet) and `agent_wallet_address`.
+4. **Funds available** — Check the **main wallet** (platform-managed trading wallet), NOT the agent wallet. Agent wallet having $0 is normal. Query `clearinghouseState` + `spotClearinghouseState` for single deployments. If the master account has sub-accounts, also query `subAccounts2` and sum total balance across master + all sub-accounts — funds allocated to sub-accounts are not available to the master. **Then verify `stake_amount × max_open_trades` fits within the available balance.** The exchange reserves a small fee buffer (~1%), so set `stake_amount` to no more than ~95% of `balance / max_open_trades` to avoid silent trade rejections. If Hyperliquid funds are insufficient but the user has native Arbitrum USDC in the platform wallet, ask for explicit confirmation and call `POST /v2/portfolio/hyperliquid/deposit`, then re-check balances before starting. If both Hyperliquid and platform-wallet funds are insufficient, tell the user they must add more of their own capital to the platform account before live trading can proceed.
+5. **No existing positions/orders** — Check `clearinghouseState` for open positions on the main wallet. If positions or orders exist, show the user details (pair, side, size, PnL) and ask them to close before deploying — leftover positions can block new entries or cause unexpected margin usage.
 
-**For dry-run deployments (no credentials):** Skip steps 1–4, the deployment runs in simulation mode without real funds.
+**For dry-run deployments (no credentials):** Skip steps 1–5, the deployment runs in simulation mode without real funds.
 
-5. **Pair is tradeable** — `POST https://api.hyperliquid.xyz/info` → `{"type":"meta"}` for standard perps, or `{"type":"meta", "dex":"xyz"}` (or the relevant dex name) for HIP3 pairs. Verify the coin name exists in the `universe` array.
+6. **Pair is tradeable** — `POST https://api.hyperliquid.xyz/info` → `{"type":"meta"}` for standard perps, or `{"type":"meta", "dex":"xyz"}` (or the relevant dex name) for HIP3 pairs. Verify the coin name exists in the `universe` array.
 
 Do NOT skip any step or assume it passed without the API call.
 
 ## API Reference
+
+### Account
+
+#### GET `/v2/account/status` — Account Setup Status
+
+Returns setup status for the authenticated user before live trading. Use this as the first live-deployment readiness check.
+
+```bash
+curl -sS "https://api.superior.trade/v2/account/status" \
+  -H "accept: application/json" \
+  -H "x-api-key: ${SUPERIOR_TRADE_API_KEY}"
+```
+
+```json
+// Response (200)
+{
+  "accountTier": "free",
+  "referral": {
+    "configured": false,
+    "code": null
+  },
+  "builder": {
+    "configured": true,
+    "address": "0xf4397BF0B047a2e70E860d475C46496F6A9efaF1",
+    "feePercent": 0.04
+  },
+  "agentWallet": {
+    "created": true,
+    "address": "0x..."
+  }
+}
+```
+
+**Fields:**
+
+| Field | Meaning |
+| ----- | ------- |
+| `accountTier` | `"free"` or `"pro"` |
+| `referral.configured` | Whether Hyperliquid referral status is configured; informational |
+| `referral.code` | Referral code when configured, otherwise `null` |
+| `builder.configured` | Whether the required builder fee is configured |
+| `builder.address` | Superior Trade builder address checked on Hyperliquid |
+| `builder.feePercent` | Configured builder fee as a percentage |
+| `agentWallet.created` | Whether the Hyperliquid agent wallet exists and is usable |
+| `agentWallet.address` | Agent wallet address; this is not the wallet to fund |
+
+**Errors:** `400 agent_wallet_not_ready`, `400 builder_not_configured`, `401 unauthorized`, `404 user_not_found`, `500 database_not_configured`.
+
+If this endpoint returns a `400`, do not proceed with live credentials or deployment start. Tell the user which setup requirement is incomplete and send them to https://account.superior.trade for setup.
 
 ### Backtesting
 
@@ -582,6 +640,67 @@ Response: `{ "id": "string", "status": "string", "replicas": 1, "available_repli
 **Credential update procedure:** (1) Stop the deployment → (2) Delete the deployment → (3) Create a new deployment with same config/code → (4) Store new credentials.
 
 **One-wallet-per-deployment rule:** Each deployment uses one wallet and runs as an isolated container. For multiple strategies on the same wallet, use multiple deployments pointing to the same wallet address.
+
+### Portfolio Deposit
+
+#### POST `/v2/portfolio/hyperliquid/deposit` — Deposit Arbitrum USDC into Hyperliquid
+
+Deposits native Arbitrum One USDC from the authenticated user's platform-managed trading wallet into Hyperliquid. This signs an ERC-20 `transfer` from the user's platform wallet to Hyperliquid Bridge2 and waits for transaction acceptance.
+
+**Use this when:** the user has funded their Superior Trade platform wallet with native USDC on Arbitrum One, but Hyperliquid balance checks show insufficient USDC for live trading. If the platform wallet is underfunded, the user must add more of their own capital to the platform account first.
+
+**Do not use this for:** withdrawals, external wallets not owned by the authenticated user, non-Arbitrum chains, non-native USDC, or any asset other than native Arbitrum USDC.
+
+Before calling this endpoint, show the amount and source wallet and wait for explicit confirmation:
+
+```
+Deposit Summary:
+• Chain: Arbitrum One
+• Asset: native USDC
+• Amount: [amount] USDC
+• Source wallet: [wallet_address or account default]
+• Destination: Hyperliquid
+
+This will move REAL USDC from the user's platform wallet into Hyperliquid. Proceed? (yes/no)
+
+If the platform wallet does not have enough USDC, the user must add more of their own capital to the platform account before this deposit can run.
+```
+
+**Constants:**
+
+| Field | Value |
+| ----- | ----- |
+| Chain aliases | `arbitrum`, `arbitrum_one`, `arbitrum-one`, `42161` |
+| Native Arbitrum USDC | `0xaf88d065e77c8cC2239327C5EDb3A432268e5831` |
+| Hyperliquid Bridge2 | `0x2df1c51e09aecf9cacb7bc98cb1742757f163df7` |
+| Minimum amount | `5` USDC |
+| Decimals | Up to 6 decimal places |
+
+```json
+// Request
+{
+  "chain": "arbitrum",
+  "asset_address": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+  "amount": "5",
+  "from": "0x... (optional)"
+}
+
+// Response (200)
+{
+  "tx_hash": "0x...",
+  "chain": "arbitrum",
+  "asset_address": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+  "amount": "5",
+  "bridge_address": "0x2df1c51e09aecf9cacb7bc98cb1742757f163df7",
+  "wallet_address": "0x..."
+}
+```
+
+If `from` is omitted, the server uses the authenticated user's default main trading wallet. If `from` is provided, it must be one of the user's platform-managed wallets; ownership is validated server-side.
+
+**Errors:** `400 invalid_json`, `400 validation_failed`, `400 unsupported_chain`, `400 unsupported_asset`, `400 insufficient_balance`, `400 no_credentials`, `500 server_error`, `502 deposit_failed`.
+
+After a successful deposit, re-check Hyperliquid balances with `clearinghouseState` and `spotClearinghouseState` before starting a live deployment. Do not assume the deposited funds are available until the balance check confirms them.
 
 ### Portfolio Exit
 
