@@ -1,7 +1,7 @@
 ---
 name: Superior Trade
-version: 4.4.8
-updated: 2026-05-27
+version: 4.4.9
+updated: 2026-06-06
 description: "Backtest and deploy trading strategies on Superior Trade's managed cloud."
 homepage: https://account.superior.trade
 source: https://github.com/Superior-Trade
@@ -186,9 +186,13 @@ Sub-account balances are included in the master account's total — funds alloca
 
 The agent wallet having $0 is expected — it trades against the main wallet's balance.
 
-### Sub-Accounts for Multi-Strategy Trading
+### Multi-Strategy Trading
 
-Users with **≥ $100,000 USD in lifetime trading volume** on Hyperliquid can create sub-accounts to run multiple independent strategies simultaneously, each with its own isolated balance and positions.
+Each strategy runs on its own wallet (one active deployment per wallet). To run multiple strategies concurrently there are two mechanisms — prefer the first:
+
+**1. Multiple trading accounts (primary).** A user can hold several trading accounts (Free: up to 3, Pro: up to 6), each its own Hyperliquid master with its own agent wallet. To start an additional concurrent strategy, create the deployment and call `POST /v2/deployment/{id}/credentials` **omitting `wallet_address`** — the server auto-assigns the next **idle** trading account. Pass an explicit `wallet_address` to target a specific account. Errors: `all_accounts_in_use` (400) when every trading account is already running a strategy.
+
+**2. Hyperliquid sub-accounts (overflow, HL-only).** When all trading accounts are busy, a master with **≥ $100,000 USD in lifetime trading volume** on Hyperliquid can create sub-accounts to run further strategies, each with its own isolated balance and positions.
 
 **Key facts:**
 
@@ -266,6 +270,11 @@ When creating a sub-account via the API, unified mode is set automatically after
 ```json
 {"type":"subAccountModify","user":"<SUB_ACCOUNT_ADDRESS>","action":"disable"}
 ```
+
+**Safety check before moving funds out of a trading account.** Any `sendAsset` / `subAccountTransfer` that pulls USDC OUT of a wallet (one trading account to another, or master to sub) lowers the source wallet's collateral. If that source wallet is running a live strategy, the withdrawal can raise liquidation risk on open positions or drop the balance below the strategy's reserved stake (`stake_amount × max_open_trades × buffer`). Before sending:
+
+1. List the source wallet's live deployments — `GET /v2/deployment?status=running` — and check whether any has a `walletAddress` matching the source.
+2. If one does, confirm with the user, and verify the **post-transfer** balance (current balance minus amount) still covers that strategy's reservation before transferring. If it would underfund the strategy, reduce the amount or move funds from an idle account instead.
 
 ### Hyperliquid Credentials
 
