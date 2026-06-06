@@ -38,6 +38,7 @@ Categories covered: **trend-following**, **mean-reversion**, **carry**, **arbitr
 
 Building blocks that compose across strategies.
 
+- [`optimizations/trade-thesis.md`](optimizations/trade-thesis.md) — Structured pre-trade thesis builder: bull/bear cases, invalidation criteria, and sizing rationale before any live deployment of a new strategy idea. Aliases: **pre-trade analysis**, **conviction check**, **trade plan**, **bull/bear case**.
 - [`optimizations/regime-overlay.md`](optimizations/regime-overlay.md) — Triple-confirmation regime gate (EMA separation + ADX + N-bar return). Turns fragile directional strategies into regime-robust ones. Aliases: **regime filter**, **trend gate**, **directional confirmation**.
 - [`optimizations/dsl-exit-engine.md`](optimizations/dsl-exit-engine.md) — Three-phase exit primitive: ROI ladder, hard stop, ratcheting trailing stop. Aliases: **ratcheting trailing stop**, **two-phase exit**, **take-profit ladder**.
 - [`optimizations/fees-optimizations.md`](optimizations/fees-optimizations.md) — Maker (ALO) vs taker (MARKET) order-type decisioning, builder fees, parameter sweeps. Aliases: **fee optimizer**, **ALO vs MARKET**, **maker pricing**.
@@ -62,6 +63,7 @@ The `intelligence/` folder provides the platform's pair-ranking system. Aliases:
 | Opportunity scanner | `intelligence/` | pair scanner, market screener, ranking funnel |
 | Fee optimizer | `optimizations/fees-optimizations.md` | ALO vs MARKET, maker vs taker, fee budgeting |
 | Two-phase trailing stop | `optimizations/dsl-exit-engine.md` | ratcheting stop, DSL exit engine |
+| Pre-trade thesis | `optimizations/trade-thesis.md` | trade plan, conviction check, bull/bear case |
 | Regime gate | `optimizations/regime-overlay.md` | trend filter, directional confirmation |
 | Sub-account orchestration | `SKILL.md` → `/v2/portfolio/...` | multi-strategy isolation |
 | Hyperliquid deposit | `SKILL.md` → `/v2/portfolio/hyperliquid/deposit` | Arbitrum USDC deposit, fund trading |

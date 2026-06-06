@@ -1,7 +1,7 @@
 ---
 name: Superior Trade
-version: 4.4.9
-updated: 2026-06-06
+version: 4.5.0
+updated: 2026-06-07
 description: "Backtest and deploy trading strategies on Superior Trade's managed cloud."
 homepage: https://account.superior.trade
 source: https://github.com/Superior-Trade
@@ -82,6 +82,7 @@ These pages live alongside this skill in the same repo. Read the matching one wh
 
 ### Optimizations
 
+- [Pre-trade thesis builder](https://github.com/Superior-Trade/superior-skills/blob/main/optimizations/trade-thesis.md) — structured bull/bear analysis, invalidation criteria, and sizing rationale before any live deployment of a new strategy idea
 - [Backtesting best practices](https://github.com/Superior-Trade/superior-skills/blob/main/optimizations/backtesting.md) — window selection, trade-count thresholds, exit-reason mix, parameter sweeps, walk-forward, zero-trade escalation, compute-cost estimation
 - [Fees optimization](https://github.com/Superior-Trade/superior-skills/blob/main/optimizations/fees-optimizations.md) — Freqtrade × Hyperliquid order types, entry/exit pricing, maker vs taker, builder code fee, edge-to-fee budgeting
 
