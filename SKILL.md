@@ -323,6 +323,16 @@ If the agent fails the same task 3+ times (e.g. strategy code keeps crashing, ba
    - **Second — pair space.** Only after a full sweep also fails, suggest a different pair, timeframe, or strategy family (e.g. mean-reversion instead of momentum).
 3. If the issue appears to be model capability (complex multi-indicator strategy), suggest switching to a more capable model for strategy generation
 
+## Market Context
+
+### Daily Market Digest
+
+`GET /v2/daily-digest` (API key) — the latest cross-asset morning briefing: macro, crypto, equities, commodities, on-chain/whale activity, news & catalysts, and 2-3 actionable ideas. Read it for current market context before broad reasoning, theme scans, or idea generation.
+
+- Optional `?locale=zh-Hant|zh-Hans|ko` returns localized copy (defaults to English).
+- Returns `{ title, preview, body, locale, publishedAt }` — `body` is markdown. Regenerated each morning (~06:00 UTC).
+- Treat it as context, not direct trade instructions. Returns `404` if no digest has been generated yet.
+
 ## Workflows
 
 ### Backtest Workflow
