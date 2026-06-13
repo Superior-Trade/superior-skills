@@ -77,6 +77,7 @@ The `intelligence/` folder provides the platform's pair-ranking system. Aliases:
 - `intelligence/` — Market scanning and pair-ranking tools across Hyperliquid altcoins. The opportunity scanner / market screener lives here.
 - `optimizations/` — Reusable primitives: regime gate, DSL exit engine, fee optimizer, backtesting harness.
 - `exchanges/` — Exchange-specific implementations (e.g., Aerodrome for spot AMM execution).
+- `polymarket/` — Prediction market trading skill: discover, backtest, and deploy Polymarket strategies via the `/v3` API (NautilusTrader engine).
 - `SKILL.md` — Full API reference and agent operating rules.
 
 ## Getting started
