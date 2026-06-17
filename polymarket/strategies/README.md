@@ -4,7 +4,7 @@ These templates are starting points for writing and adapting Polymarket strategi
 
 ## How to use this folder
 
-1. Search markets with `POST /v3/markets/search` and pick an exact market slug.
+1. Search markets with `POST /v3/markets/search` and pick an exact market slug. If the user provides a Polymarket event URL, pass the full URL as the search query so child markets can be expanded.
 2. Pick the closest archetype based on market shape and your thesis.
 3. Generate NautilusTrader strategy code with `on_trade_tick`.
 4. Backtest with `POST /v3/backtest` using custom `strategySource` and `strategyConfig`.

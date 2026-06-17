@@ -155,7 +155,7 @@ If the same task fails 3+ times (e.g. strategy validation keeps failing, backtes
 ```
 1. Onboard          →  POST /v3/account/onboard (once) — wallet + key auto-provisioned
 2. Fund wallet      →  User sends USDC on Polygon (only manual step)
-3. Discover markets →  POST /v3/markets/search — find candidate market slugs matching the user's interest
+3. Discover markets →  POST /v3/markets/search — find candidate market slugs matching the user's interest; pass exact Polymarket event URLs directly when the user provides one
 4. Write strategy   →  Author NautilusTrader Python strategy code from the closest archetype
 5. Backtest         →  POST /v3/backtest with `strategyId`, `strategySource`, and `strategyConfig`
 6. Persist          →  POST /v3/strategy only when saving for deployment/reuse
@@ -195,7 +195,7 @@ Before `PUT /v3/deployment/{id}/status` → `{"action":"start"}`:
 1. **Strategy is valid** — `GET /v3/strategy/{id}` → `status: "valid"`. Invalid strategies are rejected at deployment creation with `422`.
 2. **Backtest reviewed** — at least one completed backtest for this strategy, results shown to the user.
 3. **Wallet funded** — `GET /v3/account/wallets` → confirm the deployment's wallet has enough `usdc` for the strategy's trade size. The platform does not pre-check balance; an unfunded wallet leads to rejected orders at the venue.
-4. **Market selected** — `POST /v3/markets/search` → confirm the exact `slug` to use. If search returns multiple plausible candidates, show the candidate questions/slugs and ask the user to choose. For backtests, require `backtestSupported: true`, `coverageStatus: "available"`, and a requested timerange inside the candidate `coverage`.
+4. **Market selected** — `POST /v3/markets/search` → confirm the exact `slug` to use. If the user gives a Polymarket event URL, pass that URL as the search query so child markets can be expanded. If search returns multiple plausible candidates, show the candidate questions/slugs and ask the user to choose. For backtests, require `backtestSupported: true`, `coverageStatus: "available"`, and a requested timerange inside the candidate `coverage`.
 5. **User confirmation** — show the deployment summary and get an explicit "yes".
 
 Do NOT skip any step or assume it passed without the API call.
@@ -323,17 +323,17 @@ Ensures the default wallet exists with approvals and CLOB credentials. Useful if
 
 #### POST `/v3/markets/search` — Search Polymarket Markets
 
-Use this before any Polymarket backtest when the user describes a market in natural language ("BTC 120k before July", "Trump Greenland before 2027", "Fed 50 bps cut"). The endpoint returns candidates, not a single guaranteed resolution.
+Use this before any Polymarket backtest when the user describes a market in natural language ("BTC 120k before July", "Trump Greenland before 2027", "Fed 50 bps cut") or provides a Polymarket event URL such as `https://polymarket.com/event/world-cup-winner`. The endpoint returns candidates, not a single guaranteed resolution.
 
 ```json
 // Request
 {
-  "query": "BTC 120k before July",
+  "query": "https://polymarket.com/event/world-cup-winner",
   "limit": 10
 }
 ```
 
-**Fields:** `query` is required. `limit` is optional, defaults to 10, and must be between 1 and 50.
+**Fields:** `query` is required. It can be natural language, an exact market slug, or a Polymarket event URL. `limit` is optional, defaults to 10, and must be between 1 and 50.
 
 **Response:**
 
@@ -366,6 +366,9 @@ Use this before any Polymarket backtest when the user describes a market in natu
 
 Search rules:
 
+- If the user provides a Polymarket event URL, pass the full URL as `query`; do not manually strip it or guess the child market.
+- Event URLs can expand into child markets. Example: `https://polymarket.com/event/world-cup-winner` can return country-specific markets such as `will-portugal-win-the-2026-fifa-world-cup-912`.
+- If the user says "Ronaldo World Cup winner", search first; do not claim no market exists just because there is no exact Ronaldo-title market. The relevant candidate may be a Portugal World Cup market.
 - Pass the candidate `slug` exactly as returned into `marketSlugs[]` for `POST /v3/backtest`.
 - If more than one candidate is plausible, ask the user to choose by question/slug before backtesting or deploying.
 - For filled-data backtests, prefer candidates with `coverageStatus: "available"` and `backtestSupported: true`.
