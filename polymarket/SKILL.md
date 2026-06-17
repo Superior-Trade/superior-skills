@@ -155,7 +155,7 @@ If the same task fails 3+ times (e.g. strategy validation keeps failing, backtes
 ```
 1. Onboard          →  POST /v3/account/onboard (once) — wallet + key auto-provisioned
 2. Fund wallet      →  User sends USDC on Polygon (only manual step)
-3. Discover markets →  GET /v3/markets — find markets matching the user's interest
+3. Discover markets →  POST /v3/markets/search — find candidate market slugs matching the user's interest
 4. Write strategy   →  Author NautilusTrader Python strategy code
 5. Validate         →  POST /v3/strategy — syntax + sandbox + import checks
 6. Backtest         →  POST /v3/backtest — run against historical trade data
@@ -174,7 +174,7 @@ Before `PUT /v3/deployment/{id}/status` → `{"action":"start"}`:
 1. **Strategy is valid** — `GET /v3/strategy/{id}` → `status: "valid"`. Invalid strategies are rejected at deployment creation with `422`.
 2. **Backtest reviewed** — at least one completed backtest for this strategy, results shown to the user.
 3. **Wallet funded** — `GET /v3/account/wallets` → confirm the deployment's wallet has enough `usdc` for the strategy's trade size. The platform does not pre-check balance; an unfunded wallet leads to rejected orders at the venue.
-4. **Market still active** — `GET /v3/markets/{condition_id}` → confirm the market hasn't resolved and `end_date` leaves enough runway for the strategy.
+4. **Market selected** — `POST /v3/markets/search` → confirm the exact `slug` to use. If search returns multiple plausible candidates, show the candidate questions/slugs and ask the user to choose. For backtests, require `backtestSupported: true`, `coverageStatus: "available"`, and a requested timerange inside the candidate `coverage`.
 5. **User confirmation** — show the deployment summary and get an explicit "yes".
 
 Do NOT skip any step or assume it passed without the API call.
@@ -300,52 +300,57 @@ Ensures the default wallet exists with approvals and CLOB credentials. Useful if
 
 ### Markets
 
-#### GET `/v3/markets` — Discover Markets (public)
+#### POST `/v3/markets/search` — Search Polymarket Markets
 
-```
-GET /v3/markets?sector={sector}&search={query}&min_volume={min}&limit={n}
+Use this before any Polymarket backtest when the user describes a market in natural language ("BTC 120k before July", "Trump Greenland before 2027", "Fed 50 bps cut"). The endpoint returns candidates, not a single guaranteed resolution.
+
+```json
+// Request
+{
+  "query": "BTC 120k before July",
+  "limit": 10
+}
 ```
 
-**Query params:** `sector` (`crypto`, `finance`, `politics`, `sports`, `entertainment`, `all` — default `all`), `search` (keyword), `min_volume` (number), `limit` (default 20).
+**Fields:** `query` is required. `limit` is optional, defaults to 10, and must be between 1 and 50.
 
 **Response:**
 
 ```json
 {
-  "markets": [
+  "status": "candidates_found",
+  "candidates": [
     {
-      "condition_id": "0xdd22472e552920b8438158ea7238bfadfa4f736aa4cee91a6b86c39ead110917",
-      "question": "Will Donald Trump win the 2024 US Presidential Election?",
-      "slug": "will-donald-trump-win-the-2024-us-presidential-election",
-      "sector": "politics",
-      "outcomes": [
-        {
-          "token_id": "21742633143463906290569050155826241533067272736897614950488156847949938836455",
-          "label": "Yes",
-          "price": 0.60,
-          "instrument_id": "0xdd22472e...-21742633....POLYMARKET"
-        },
-        {
-          "token_id": "48331043336612883890938759509493159234755048973217966415785029644190266627762",
-          "label": "No",
-          "price": 0.40,
-          "instrument_id": "0xdd22472e...-48331043....POLYMARKET"
-        }
-      ],
-      "volume_24h": 39000000,
-      "volume_total": 134000000,
-      "liquidity": 2000000,
-      "end_date": "2026-12-31T00:00:00Z"
+      "slug": "will-bitcoin-hit-120000-before-july-1",
+      "question": "Will Bitcoin hit $120,000 before July 1?",
+      "tradeCount": 12345,
+      "liquidity": 240000.5,
+      "volume": 1800000.25,
+      "volume24h": 95000.1,
+      "coverage": {
+        "start": "2026-05-01",
+        "end": "2026-06-17"
+      },
+      "dataMode": "fills_only",
+      "coverageStatus": "available",
+      "backtestSupported": true,
+      "deploymentSupported": false,
+      "matchedKeywords": ["bitcoin", "120000", "july"]
     }
   ]
 }
 ```
 
-Upstream data errors return `502` with `{ "error": "..." }`.
+`status: "not_found"` with an empty `candidates` array means no matching market was found. Do not invent a slug.
 
-#### GET `/v3/markets/{condition_id}` — Market Details (public)
+Search rules:
 
-Returns full market details including order book depth, recent trades, and all outcome `instrument_id`s. `404` if not found.
+- Pass the candidate `slug` exactly as returned into `marketSlugs[]` for `POST /v3/backtest`.
+- If more than one candidate is plausible, ask the user to choose by question/slug before backtesting or deploying.
+- For filled-data backtests, prefer candidates with `coverageStatus: "available"` and `backtestSupported: true`.
+- If `coverageStatus` is `"metadata_only"`, the market is known but historical filled data is not hydrated yet; explain that it cannot be backtested until data coverage is available.
+- `deploymentSupported` is intentionally separate from `backtestSupported`; do not assume a market is deployable just because filled-data backtesting is available.
+- Current market search does **not** return order book depth, outcome token IDs, current prices, or prebuilt `instrument_id`s.
 
 #### Instrument ID Format
 
@@ -355,7 +360,7 @@ Each outcome (Yes/No) is a separate tradeable instrument:
 {condition_id}-{token_id}.POLYMARKET
 ```
 
-Use the `instrument_id` field from the discovery response directly — it's pre-constructed. To trade the "Yes" outcome, use the instrument_id from the "Yes" outcome object. For multi-outcome markets (e.g. "Fed rate: hold / 25bp cut / 50bp cut"), each outcome is a separate instrument with its own instrument_id.
+Do not derive or guess `condition_id` / `token_id` values from search candidates. Market search is for finding the exact `slug` and data coverage. If a strategy requires explicit instruments, use values from a validated market-detail/orderbook source when that API is available, or ask the user for the exact instrument.
 
 ### Strategy
 
@@ -436,62 +441,74 @@ Response: `{ "deleted": true }`. Returns `403` if the strategy belongs to anothe
 ```json
 // Request
 {
-  "strategy_id": "strat_abc123",
-  "market_slugs": ["will-donald-trump-win-the-2024-us-presidential-election"],
-  "starting_balance": 1000,
-  "timerange": { "start": "2024-10-01", "end": "2024-11-06" }
+  "tenantId": "tenant_a",
+  "backtestId": "bt_xyz789",
+  "strategyId": "strat_abc123",
+  "marketSlugs": ["will-donald-trump-win-the-2024-us-presidential-election"],
+  "startingBalance": 1000,
+  "timerange": { "start": "2024-10-01", "end": "2024-11-06" },
+  "venueProfile": "polymarket-london"
 }
 
-// Response — starts immediately, no pending state
-{ "id": "bt_xyz789", "status": "running" }
+// Response — planned/queued
+{
+  "tenantId": "tenant_a",
+  "backtestId": "bt_xyz789",
+  "strategyId": "strat_abc123",
+  "status": "queued",
+  "resultUri": "gs://.../backtest-results/polymarket/tenant=tenant_a/date=2026-06-17/bt_xyz789.json"
+}
 ```
 
-- `strategy_id` and `market_slugs` are required; `starting_balance` defaults to 1000 (pUSD).
-- `timerange` is accepted and stored but **not currently applied** — the engine replays each market's full available trade history regardless. Do not tell users a specific date window was backtested.
-- The engine loads historical **trade ticks** for each market slug (one instrument per slug). The strategy's `instrument_id` must correspond to an instrument of one of the given markets — a mismatch produces zero fills, not an error. Use slugs from the market discovery response.
-- Backtests are killed after **5 minutes** — very high-volume markets may hit this limit.
-- Errors: `404` strategy not found, `422` strategy not valid.
+- `tenantId`, `backtestId`, `strategyId`, `marketSlugs`, `timerange`, and `venueProfile` are required.
+- Use exact `slug` values returned by `POST /v3/markets/search` as `marketSlugs[]`.
+- `startingBalance` defaults to 1000 pUSD.
+- `timerange` must fit inside the candidate coverage returned by market search. If data coverage is missing, the API returns `409` with a blocked reason instead of pretending the backtest ran.
+- The engine loads historical **trade ticks** for each market slug. Filled-data backtests cannot prove order-book queue priority, spread capture, or exact partial-fill realism.
 
 > **Backtests replay historical trade ticks.** Strategies that only subscribe to quote ticks (`subscribe_quote_ticks`) may receive no callbacks in a backtest. For backtestable strategies, drive logic from `on_trade_tick` (or subscribe to both and let live trading benefit from quotes).
 
-#### GET `/v3/backtest` — List My Backtests
-
-```json
-{
-  "backtests": [
-    {
-      "id": "bt_xyz789",
-      "strategy_id": "strat_abc123",
-      "status": "completed",
-      "starting_balance": 1000,
-      "market_slugs": ["will-donald-trump-win-the-2024-us-presidential-election"],
-      "created_at": "2026-06-02T10:00:00Z"
-    }
-  ]
-}
-```
-
-#### GET `/v3/backtest/{id}` — Results
+#### GET `/v3/backtest/{id}/status` — Poll Status
 
 Poll until `status` is `completed` or `failed`. Typical run takes 1–30 seconds depending on data size.
 
-**Statuses:** `running` → `completed` | `failed`
+**Statuses:** `pending` → `running` → `completed` | `failed`
+
+```json
+{
+  "id": "bt_xyz789",
+  "status": "completed",
+  "resultUrl": "gs://.../backtest-results/polymarket/tenant=tenant_a/date=2026-06-17/bt_xyz789.json",
+  "k8sJobName": "polymarket-backtest-bt-xyz789"
+}
+```
+
+#### GET `/v3/backtest/{id}` — Persisted Record
+
+Returns the persisted backtest record and current status.
+
+#### GET `/v3/backtest/{id}/result` — Uploaded Result
+
+Returns `202` while the result is not ready, then `200` when the runner has uploaded JSON to GCS.
 
 ```json
 // Response (completed)
 {
-  "id": "bt_xyz789",
-  "strategy_id": "strat_abc123",
+  "backtest_id": "bt_xyz789",
   "status": "completed",
-  "starting_balance": 1000,
-  "market_slugs": ["..."],
-  "results": {
+  "resultUri": "gs://.../backtest-results/polymarket/tenant=tenant_a/date=2026-06-17/bt_xyz789.json",
+  "result": {
     "starting_balance": 1000,
-    "ending_balance": 1087.50,
-    "total_pnl": 87.50,
+    "ending_balance": 1087.5,
+    "total_pnl": 87.5,
     "total_return_pct": 8.75,
     "total_orders": 24,
     "total_fills": 24,
+    "dataset_provenance": {
+      "dataset_version": "20260617T033000Z-backtest-ready-trade-ticks-compatible",
+      "source": "persisted_dataset",
+      "total_ticks": 63626
+    },
     "trades": [
       {
         "instrument": "0xdd22472e...-21742633....POLYMARKET",
@@ -511,15 +528,18 @@ Poll until `status` is `completed` or `failed`. Typical run takes 1–30 seconds
       }
     ]
   },
-  "error": null,
-  "created_at": "2026-06-02T10:00:00Z"
+  "message": null
 }
 
 // Response (failed)
-{ "id": "bt_xyz789", "status": "failed", "results": null, "error": "No data loaded for slugs: invalid-market-slug" }
+{ "backtest_id": "bt_xyz789", "status": "failed", "message": "No data loaded for slugs: invalid-market-slug" }
 ```
 
 Balances are in pUSD. The `trades` array is capped at the first 50 fills. Win rate, Sharpe, and drawdown are not computed server-side — derive them from `trades`/`positions` if the user asks.
+
+#### GET `/v3/backtest/{id}/logs` — Runtime Logs
+
+Use this when status is `failed`, stuck, or the user asks what happened. Logs come from GCP Logging for the Kubernetes Job.
 
 #### Result Interpretation
 
@@ -1015,8 +1035,8 @@ class SpreadCapture(Strategy):
 
 ### Backtest Failures
 
-- `status: "failed"` with `error: "No data loaded for slugs: ..."` — the market slug is wrong or has no trade history. Re-check the `slug` field from `GET /v3/markets`.
-- `error: "Process exited with code N"` — the strategy crashed at runtime. Common causes: config kwargs that don't match the config class fields, or referencing an instrument the engine didn't load (instrument_id must belong to one of the `market_slugs`).
+- `status: "failed"` with `message: "No data loaded for slugs: ..."` — the market slug is wrong or has no hydrated fill history. Re-check the exact `slug` from `POST /v3/markets/search` and require `coverageStatus: "available"`.
+- `message: "Process exited with code N"` — the strategy crashed at runtime. Common causes: config kwargs that don't match the config class fields, or referencing an instrument the engine didn't load.
 - **Zero fills** — the strategy's conditions never triggered, or it only subscribes to quote ticks (backtests replay trade ticks only).
 
 ### Deployment Issues
