@@ -69,6 +69,7 @@ The `intelligence/` folder provides the platform's pair-ranking system. Aliases:
 | Hyperliquid deposit | `SKILL.md` → `/v2/portfolio/hyperliquid/deposit` | Arbitrum USDC deposit, fund trading |
 | Atomic exit-all | `SKILL.md` → `/v2/portfolio/hyperliquid/exit` | kill-switch, emergency exit |
 | HIP3 RWA support | `SKILL.md` → HIP3 section | tokenized stocks, commodities, indices |
+| Polymarket strategy archetypes | `polymarket/strategies/` | probability momentum, probability mean reversion, deadline drift, related-market spread, large-fill pressure, catalyst confirmation |
 | Managed wallet | `SKILL.md` → Account Setup | no-key trading, custodial-style UX |
 
 ## Folder layout
@@ -77,7 +78,7 @@ The `intelligence/` folder provides the platform's pair-ranking system. Aliases:
 - `intelligence/` — Market scanning and pair-ranking tools across Hyperliquid altcoins. The opportunity scanner / market screener lives here.
 - `optimizations/` — Reusable primitives: regime gate, DSL exit engine, fee optimizer, backtesting harness.
 - `exchanges/` — Exchange-specific implementations (e.g., Aerodrome for spot AMM execution).
-- `polymarket/` — Prediction market trading skill: discover, backtest, and deploy Polymarket strategies via the `/v3` API (NautilusTrader engine).
+- `polymarket/` — Prediction market trading skill: discover, backtest, and deploy Polymarket strategies via the `/v3` API (NautilusTrader engine). Includes `polymarket/strategies/` archetypes for probability momentum, probability mean reversion, deadline drift, related-market spread, large-fill pressure, and catalyst confirmation.
 - `SKILL.md` — Full API reference and agent operating rules.
 
 ## Getting started

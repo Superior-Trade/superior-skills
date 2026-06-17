@@ -1,7 +1,7 @@
 ---
 name: Polymarket Prediction Market Trading
 version: 1.0.0
-updated: 2026-06-12
+updated: 2026-06-17
 description: "Discover, backtest, and deploy prediction market trading strategies on Polymarket through Superior Trade's managed cloud."
 homepage: https://superior.trade
 source: https://github.com/Superior-Trade
@@ -156,9 +156,9 @@ If the same task fails 3+ times (e.g. strategy validation keeps failing, backtes
 1. Onboard          →  POST /v3/account/onboard (once) — wallet + key auto-provisioned
 2. Fund wallet      →  User sends USDC on Polygon (only manual step)
 3. Discover markets →  POST /v3/markets/search — find candidate market slugs matching the user's interest
-4. Write strategy   →  Author NautilusTrader Python strategy code
-5. Validate         →  POST /v3/strategy — syntax + sandbox + import checks
-6. Backtest         →  POST /v3/backtest — run against historical trade data
+4. Write strategy   →  Author NautilusTrader Python strategy code from the closest archetype
+5. Backtest         →  POST /v3/backtest with `strategyId`, `strategySource`, and `strategyConfig`
+6. Persist          →  POST /v3/strategy only when saving for deployment/reuse
 7. Review results   →  Analyze performance; iterate or proceed
 8. Deploy           →  POST /v3/deployment → confirm with user → start
 9. Monitor          →  Positions, P&L, deployment status
@@ -166,6 +166,27 @@ If the same task fails 3+ times (e.g. strategy validation keeps failing, backtes
 ```
 
 Steps 1–2 happen once. Steps 3–10 are fully automated by the agent (with user confirmation before step 8's start).
+
+### Strategy Archetypes
+
+When a user asks for a Polymarket strategy, pick an archetype first and then generate strategy code from it. This keeps backtest assumptions explicit and reduces silent drift.
+
+- [Probability Momentum](strategies/probability-momentum.md) — momentum, breakout, fast reaction in active markets
+- [Probability Mean Reversion](strategies/probability-mean-reversion.md) — overreaction fade and range-like behavior
+- [Deadline Drift](strategies/deadline-drift.md) — time-to-resolution behavior, especially before-date markets
+- [Related-Market Spread](strategies/related-market-spread.md) — relative-value checks across linked markets
+- [Large-Fill Pressure](strategies/large-fill-pressure.md) — repeated oversized fills with directional follow-through
+- [Catalyst Confirmation](strategies/catalyst-confirmation.md) — event thesis with market confirmation first
+
+Operational rules:
+
+1. Pick the closest archetype before coding.
+2. Treat these as starting points, not validated strategies.
+3. Generate a custom NautilusTrader strategy from the selected archetype and pass it directly to `POST /v3/backtest` via `strategySource` with matching `strategyConfig`.
+4. Before any backtest request, confirm exact market slugs from search candidates.
+5. Use filled-data assumptions (`TradeTick`) in backtests; do not promise queue/maker behavior without matching evidence.
+
+Filled-data rule: Polymarket strategy logic should be driven by historical `TradeTick` replay in backtesting. If logic is quote-only, flag it as likely non-tradable in current backtest mode.
 
 ### Pre-Deployment Checklist (MANDATORY)
 
@@ -444,6 +465,11 @@ Response: `{ "deleted": true }`. Returns `403` if the strategy belongs to anothe
   "tenantId": "tenant_a",
   "backtestId": "bt_xyz789",
   "strategyId": "strat_abc123",
+  "strategySource": "from nautilus_trader.config import StrategyConfig\nfrom nautilus_trader.model.data import TradeTick\n...",
+  "strategyConfig": {
+    "order_size": 10,
+    "lookback_ticks": 20
+  },
   "marketSlugs": ["will-donald-trump-win-the-2024-us-presidential-election"],
   "startingBalance": 1000,
   "timerange": { "start": "2024-10-01", "end": "2024-11-06" },
@@ -461,6 +487,8 @@ Response: `{ "deleted": true }`. Returns `403` if the strategy belongs to anothe
 ```
 
 - `tenantId`, `backtestId`, `strategyId`, `marketSlugs`, `timerange`, and `venueProfile` are required.
+- For generated custom strategies, use `strategyId` as the strategy/run identifier and include `strategySource` + `strategyConfig`. If `strategySource` is omitted, the API tries the known template matching `strategyId`.
+- If the custom strategy config declares `instrument_id`, the runner injects the primary market outcome instrument when `strategyConfig.instrument_id` is omitted. Only provide explicit instrument IDs when the user or a market-detail source gives exact values.
 - Use exact `slug` values returned by `POST /v3/markets/search` as `marketSlugs[]`.
 - `startingBalance` defaults to 1000 pUSD.
 - `timerange` must fit inside the candidate coverage returned by market search. If data coverage is missing, the API returns `409` with a blocked reason instead of pretending the backtest ran.
@@ -949,7 +977,7 @@ class MomentumFade(Strategy):
 
 ### Spread Capture / Market Making
 
-Place bid and ask around the midpoint, capture spread. Quote-driven — best suited for live trading (see the backtest compatibility note). Watch the rate limit: cancelling and re-quoting on every tick can exceed 30 orders/minute on active markets.
+Live-only reference. Do **not** use this as a filled-data backtest template: it needs quote/order-book state, queue assumptions, and spread realism that current Polymarket backtests do not replay. Watch the rate limit: cancelling and re-quoting on every tick can exceed 30 orders/minute on active markets.
 
 ```python
 from nautilus_trader.config import StrategyConfig
