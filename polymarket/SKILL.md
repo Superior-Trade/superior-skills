@@ -25,7 +25,7 @@ externalEndpoints:
 
 Trade prediction markets on Polymarket through Superior Trade. Discover markets, write NautilusTrader strategies, backtest against historical trade data, and deploy live — all through one API.
 
-**Base URL:** `https://api.superior.trade/v3`
+**Base URL:** Use the environment-configured Superior Trade API base URL. Production is `https://api.superior.trade/v3`; UAT may use `https://api-uat.superior.trade/v3`.
 **Auth:** `Authorization: Bearer <api_key>` header on all protected endpoints
 **Docs:** `GET /v3/docs` (interactive reference), `GET /v3/openapi.json` (OpenAPI spec)
 
