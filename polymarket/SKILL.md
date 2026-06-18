@@ -1,24 +1,24 @@
 ---
 name: Polymarket Prediction Market Trading
-version: 1.0.0
-updated: 2026-06-17
-description: "Discover, backtest, and deploy prediction market trading strategies on Polymarket through Superior Trade's managed cloud."
+version: 1.1.0
+updated: 2026-06-18
+description: "Discover Polymarket markets, run v3 filled-data backtests, and plan/start live Nautilus deployments through Superior Trade's managed cloud."
 homepage: https://superior.trade
 source: https://github.com/Superior-Trade
 primaryEnv: SUPERIOR_TRADE_PM_API_KEY
 auth:
   type: api_key
   env: SUPERIOR_TRADE_PM_API_KEY
-  header: "Authorization: Bearer"
-  scope: "Read-write the user's own strategies, backtests, and deployments. Can start live trading deployments that execute real trades on Polymarket with the user's platform-managed wallet. Cannot export private keys or access other users' data. Withdrawals are not yet available via the API."
+  header: "x-api-key"
+  scope: "Read-write the user's own v3 trading accounts, Polymarket funding actions, backtests, and deployments. Can bootstrap Polymarket setup, deposit Polygon USDC/USDC.e into pUSD, plan/start live deployments after explicit confirmation, and close Polymarket positions. Cannot export private keys or access other users' data."
 env:
   - name: SUPERIOR_TRADE_PM_API_KEY
-    description: "Superior Trade prediction market API key (Bearer token). Obtained via POST /v3/account/onboard — no signup form required. Can create/manage strategies, backtests, and deployments including live trading. Cannot export private keys or access other users' data."
+    description: "Superior Trade prediction market API key. The main API accepts x-api-key for product API keys and Bearer auth for user sessions. Can create/manage trading accounts, Polymarket onboarding/funding, v3 backtests, and deployments. Cannot export private keys or access other users' data."
     required: true
     type: api_key
 externalEndpoints:
   - url: https://api.superior.trade/v3
-    purpose: "All market discovery, strategy validation, backtesting, deployment, and account operations"
+    purpose: "Trading accounts, Polymarket onboarding/funding, market discovery, filled-data backtesting, deployment planning/status, credential metadata, and logs"
 ---
 
 # Polymarket Prediction Market Trading
@@ -26,71 +26,63 @@ externalEndpoints:
 Trade prediction markets on Polymarket through Superior Trade. Discover markets, write NautilusTrader strategies, backtest against historical trade data, and deploy live — all through one API.
 
 **Base URL:** `https://api.superior.trade/v3`
-**Auth:** `Authorization: Bearer <api_key>` header on all protected endpoints
+**Auth:** Prefer `x-api-key: <api_key>` for Superior Trade product API keys. Browser/session callers may use `Authorization: Bearer <token>`.
 **Docs:** `GET /v3/docs` (interactive reference), `GET /v3/openapi.json` (OpenAPI spec)
 
 ## Setup
 
-### Getting an API Key (Zero-Friction Onboarding)
+### API Key
 
-No manual signup or wallet setup is required. One public call provisions everything:
+This skill uses an existing Superior Trade API key:
 
 ```
-POST /v3/account/onboard
-{ "label": "my-agent" }            // label optional, defaults to "agent"
+x-api-key: $SUPERIOR_TRADE_PM_API_KEY
 ```
 
-**Response:**
+If `SUPERIOR_TRADE_PM_API_KEY` is not set, ask the user to provide or configure their Superior Trade API key through their normal credential flow. Do **not** call `POST /v3/account/onboard`; that path is not part of the current main API.
+
+### Wallet and Funding
+
+Trading-account wallets are managed through `/v3/account`. Polymarket readiness and balances are checked through `/v3/account/{address}/status/polymarket`. Deposits are not "send-to-address instructions"; the v3 API wraps Polygon USDC/USDC.e from an owned Superior wallet into Polymarket pUSD through `/v3/portfolio/polymarket/deposit`.
+
+Before live trading:
+
+1. List or create a trading account with `/v3/account`.
+2. Bootstrap Polymarket setup for the wallet with `POST /v3/account/{address}/polymarket`.
+3. Check readiness with `GET /v3/account/{address}/status/polymarket`; it reports onboarding, approvals, credentials, and balances.
+4. If needed, deposit Polygon USDC/USDC.e with `POST /v3/portfolio/polymarket/deposit`.
+5. Create a v3 deployment plan with strategy code and config.
+6. Store credential metadata with `POST /v3/deployment/{id}/credentials` using only the owned `wallet_address`.
+7. Start the deployment only after the user explicitly confirms.
+
+The v3 credentials endpoint accepts wallet-address metadata only:
 
 ```json
-{
-  "api_key": "sk_...",
-  "user_id": "user_abc123",
-  "wallet_id": "wal_abc123",
-  "deposit_address": "0x1234...abcd",
-  "builder_code": "0x9132...",
-  "gasless": true,
-  "message": "Save your api_key. Send USDC to deposit_address on Polygon to fund your account."
-}
+{ "wallet_address": "0x1234567890123456789012345678901234567890" }
 ```
 
-This auto-provisions:
+It rejects `private_key` and rejects wallet addresses outside the authenticated account list.
 
-1. **Wallet** — created via Polymarket builder relayer (gasless, no web UI needed)
-2. **Polymarket allowances** — contract approvals set automatically (gasless)
-3. **CLOB API credentials** — derived from the wallet signature when the first deployment starts
+### Account Endpoints
 
-**Save the `api_key` immediately** — store it as `SUPERIOR_TRADE_PM_API_KEY` in the agent's environment/credential settings. If `SUPERIOR_TRADE_PM_API_KEY` is already set, use it directly in the `Authorization: Bearer` header without re-onboarding.
+Current account/funding endpoints:
 
-### Funding (The Only Manual Step)
+- `GET /v3/account`
+- `POST /v3/account`
+- `PATCH /v3/account/{address}`
+- `POST /v3/account/{address}/polymarket`
+- `GET /v3/account/{address}/status/polymarket`
+- `GET /v3/account/{address}/deposit-link`
+- `POST /v3/portfolio/polymarket/deposit`
+- `POST /v3/portfolio/polymarket/exit`
 
-The user must send **USDC on Polygon** to their `deposit_address`. The agent cannot move or bridge funds — the user handles this independently.
-
-- Accepted assets: `pUSD`, `USDC`, `USDC.e` (on Polygon)
-- No gas needed on the user's side — the platform relayer is gasless
-- Get the deposit address any time via `GET /v3/account` or `POST /v3/account/deposit/polymarket`
-- Check balances via `GET /v3/account/wallets` (returns per-wallet `usdc` and `pol` balances)
-
-> **Withdrawals are not yet available via the API.** `POST /v3/account/withdraw/polymarket` exists but returns a pending stub — do not promise users that API withdrawals work. If a user asks to withdraw, say the feature is not yet live.
-
-### Multi-Wallet Support
-
-Each user can create up to **3 wallets** (hard limit). Each deployment uses one wallet, giving isolated balances and positions per strategy:
-
-```
-POST /v3/account/wallets { "label": "btc-carry" }    → wal_abc + deposit address
-POST /v3/account/wallets { "label": "fed-spread" }   → wal_def + deposit address
-GET  /v3/account/wallets                             → list all wallets with balances
-POST /v3/deployment { "strategy_id": "...", "wallet_id": "wal_abc" }
-```
-
-If `wallet_id` is omitted when creating a deployment, the default wallet is used.
+Do not advertise old/stale paths: `/v3/account/onboard`, `/v3/account/wallets`, `/v3/account/deposit/polymarket`, `/v3/account/withdraw/polymarket`, or `/v3/deployment/{id}/exit`.
 
 ## Safety
 
 ### Security & Permissions
 
-This skill requires exactly **one credential**: a Bearer token. The only secret the agent uses is `SUPERIOR_TRADE_PM_API_KEY`.
+This skill requires exactly **one credential**: a Superior Trade API key. The only secret the agent uses is `SUPERIOR_TRADE_PM_API_KEY`.
 
 **Security rules (non-negotiable):**
 
@@ -98,15 +90,16 @@ This skill requires exactly **one credential**: a Bearer token. The only secret 
 2. **NEVER** log, store, or display private keys or seed phrases
 3. **NEVER** fabricate wallet balances, API responses, market prices, or trade results
 4. **NEVER** start a live deployment without explicit user confirmation
-5. **NEVER** promise API withdrawals — the withdraw endpoint is not yet live
+5. **NEVER** promise withdrawals — v3 supports Polymarket deposit and portfolio exit, not withdrawal to an external address
 6. **Prefer user-friendly language** over internal technical names when speaking conversationally. Say "strategy" or "the bot" instead of internal class names or infrastructure details. If the user asks about the underlying technology, answer honestly (the platform uses NautilusTrader for strategy execution against Polymarket's CLOB).
 
-| Can do                                                              | Cannot do                          |
-| ------------------------------------------------------------------- | ---------------------------------- |
-| Create, list, delete strategies                                     | Access other users' data           |
-| Create and run backtests                                            | Export or view private keys        |
-| Create, start, stop, exit deployments (live trading with real funds) | Withdraw funds (not yet available) |
-| View positions, P&L, wallet balances                                | Transfer or bridge funds           |
+| Can do                                                                               | Cannot do                            |
+| ------------------------------------------------------------------------------------ | ------------------------------------ |
+| List/create/rename trading accounts                                                   | Access other users' data             |
+| Bootstrap Polymarket setup, check readiness, and deposit Polygon USDC/USDC.e to pUSD   | Export, accept, or view private keys |
+| Search markets and run filled-data backtests                                          | Withdraw to an external address      |
+| Plan deployments, store wallet-address credential metadata, start/stop/delete v3 runs  | Invent balances or trade results     |
+| Close all Polymarket positions/orders with `/v3/portfolio/polymarket/exit` after confirmation | Transfer or bridge arbitrary funds   |
 
 ### Polymarket-Specific Risks (tell the user when relevant)
 
@@ -122,12 +115,12 @@ Before any **live deployment start**, the agent MUST present this summary and wa
 
 ```
 Deployment Summary:
-• Strategy: [strategy_class] ([strategy_id])
+• Deployment: [deployment_id]
 • Venue: Polymarket
 • Market(s): [market question(s)]
-• Wallet: [wallet_id / label] — balance: [usdc] USDC
-• Trade size: [from strategy config] pUSD
-• Market end date: [end_date]
+• Wallet address: [0x...] — readiness: [ready/blockers from status endpoint]
+• Trade size/risk settings: [from deployment.config]
+• Backtest reviewed: [backtest_id / result summary]
 
 ⚠️ This will trade with REAL funds. Proceed? (yes/no)
 ```
@@ -144,7 +137,7 @@ Do NOT start a live deployment without an explicit affirmative response.
 
 ### Repeated Failures
 
-If the same task fails 3+ times (e.g. strategy validation keeps failing, backtest keeps erroring), stop and:
+If the same task fails 3+ times (e.g. strategy source/config keeps failing, backtest keeps erroring), stop and:
 
 1. Summarize what was tried and what failed
 2. Suggest a simpler approach or different parameters
@@ -153,19 +146,21 @@ If the same task fails 3+ times (e.g. strategy validation keeps failing, backtes
 ## Workflow
 
 ```
-1. Onboard          →  POST /v3/account/onboard (once) — wallet + key auto-provisioned
-2. Fund wallet      →  User sends USDC on Polygon (only manual step)
-3. Discover markets →  POST /v3/markets/search — find candidate market slugs matching the user's interest; pass exact Polymarket event URLs directly when the user provides one
-4. Write strategy   →  Author NautilusTrader Python strategy code from the closest archetype
-5. Backtest         →  POST /v3/backtest with `strategyId`, `strategySource`, and `strategyConfig`
-6. Persist          →  POST /v3/strategy only when saving for deployment/reuse
-7. Review results   →  Analyze performance; iterate or proceed
-8. Deploy           →  POST /v3/deployment → confirm with user → start
-9. Monitor          →  Positions, P&L, deployment status
-10. Exit            →  POST /v3/deployment/{id}/exit when done
+1. Confirm auth      →  Use existing `SUPERIOR_TRADE_PM_API_KEY`
+2. Account setup     →  GET/POST /v3/account, then POST /v3/account/{address}/polymarket
+3. Check readiness   →  GET /v3/account/{address}/status/polymarket; deposit if needed
+4. Deposit if needed →  POST /v3/portfolio/polymarket/deposit using Polygon USDC/USDC.e
+5. Discover markets  →  POST /v3/markets/search — find candidate market slugs matching the user's interest; pass exact Polymarket event URLs directly when the user provides one
+6. Write strategy    →  Author NautilusTrader Python strategy code from the closest archetype
+7. Backtest          →  POST /v3/backtest with `strategyId`, `strategySource`, and `strategyConfig`
+8. Review results    →  Poll/read backtest status/result/logs; analyze performance; iterate or proceed
+9. Plan deployment   →  POST /v3/deployment with `{ deployment: { code, config } }`
+10. Store credentials → POST /v3/deployment/{id}/credentials with an owned `wallet_address`
+11. Start            →  Confirm with user → PATCH/PUT /v3/deployment/{id}/status `{ "action": "start" }`
+12. Monitor/stop     →  Status/logs; stop with PATCH/PUT `/v3/deployment/{id}/status` `{ "action": "stop" }`
 ```
 
-Steps 1–2 happen once. Steps 3–10 are fully automated by the agent (with user confirmation before step 8's start).
+Deployment start requires both credential metadata and explicit user confirmation.
 
 ### Strategy Archetypes
 
@@ -190,13 +185,14 @@ Filled-data rule: Polymarket strategy logic should be driven by historical `Trad
 
 ### Pre-Deployment Checklist (MANDATORY)
 
-Before `PUT /v3/deployment/{id}/status` → `{"action":"start"}`:
+Before `PATCH /v3/deployment/{id}/status` or `PUT /v3/deployment/{id}/status` → `{"action":"start"}`:
 
-1. **Strategy is valid** — `GET /v3/strategy/{id}` → `status: "valid"`. Invalid strategies are rejected at deployment creation with `422`.
-2. **Backtest reviewed** — at least one completed backtest for this strategy, results shown to the user.
-3. **Wallet funded** — `GET /v3/account/wallets` → confirm the deployment's wallet has enough `usdc` for the strategy's trade size. The platform does not pre-check balance; an unfunded wallet leads to rejected orders at the venue.
+1. **Backtest reviewed** — at least one completed backtest for this strategy code/config or materially similar logic, results shown to the user.
+2. **Wallet readiness checked** — `GET /v3/account/{address}/status/polymarket` returns `onboarding.ready: true`. If not ready, resolve the blockers first; common blockers are no wallet, not onboarded, approvals missing, or balance below 5 USDC.
+3. **Credentials metadata stored** — `POST /v3/deployment/{id}/credentials` with an owned `wallet_address`; do not send private keys.
 4. **Market selected** — `POST /v3/markets/search` → confirm the exact `slug` to use. If the user gives a Polymarket event URL, pass that URL as the search query so child markets can be expanded. If search returns multiple plausible candidates, show the candidate questions/slugs and ask the user to choose. For backtests, require `backtestSupported: true`, `coverageStatus: "available"`, and a requested timerange inside the candidate `coverage`.
-5. **User confirmation** — show the deployment summary and get an explicit "yes".
+5. **Deployment config valid** — Polymarket live deployment config must include `instrument_id` formatted as `<clobTokenId>.POLYMARKET`.
+6. **User confirmation** — show the deployment summary and get an explicit "yes".
 
 Do NOT skip any step or assume it passed without the API call.
 
@@ -204,120 +200,203 @@ Do NOT skip any step or assume it passed without the API call.
 
 ### Account
 
-#### POST `/v3/account/onboard` — Onboard (public)
-
-Creates a user, API key, and default wallet in one call. See [Setup](#setup) for request/response.
-
-Idempotency note: calling onboard again creates a **new** user and key. To add keys or wallets to an existing account, use the authenticated endpoints below.
-
-#### GET `/v3/account` — Account Overview
+#### GET `/v3/account` — List Trading Accounts
 
 ```json
 {
-  "user_id": "user_abc123",
-  "wallets": [
+  "items": [
     {
-      "wallet_id": "wal_abc123",
-      "label": "default",
-      "deposit_address": "0x1234...abcd",
-      "approvals_set": true,
-      "clob_credentials": true
-    }
-  ],
-  "active_deployments": 2,
-  "builder_code": "0x9132...",
-  "gasless": true
-}
-```
-
-Note: this endpoint does **not** return balances. Use `GET /v3/account/wallets` for balances.
-
-#### POST `/v3/account/wallets` — Create Wallet
-
-```json
-// Request
-{ "label": "btc-carry" }
-
-// Response
-{
-  "wallet_id": "wal_def456",
-  "label": "btc-carry",
-  "deposit_address": "0x5678...efgh",
-  "builder_code": "0x9132...",
-  "gasless": true,
-  "message": "New wallet created. Send USDC to deposit_address on Polygon."
-}
-
-// Error (400) — wallet limit reached
-{ "error": "Maximum 3 wallets per user" }
-```
-
-#### GET `/v3/account/wallets` — List Wallets with Balances
-
-```json
-{
-  "wallets": [
-    {
-      "wallet_id": "wal_abc123",
-      "label": "default",
-      "deposit_address": "0x1234...abcd",
-      "balances": { "usdc": "150.25", "pol": "0" },
-      "approvals_set": true,
-      "clob_credentials": true,
-      "created_at": "2026-06-01T10:00:00Z"
+      "name": "Trading Account 1",
+      "account_index": 1,
+      "wallet_address": "0x1234567890123456789012345678901234567890"
     }
   ]
 }
 ```
 
-#### GET `/v3/account/wallets/{id}` — Wallet Detail
+#### POST `/v3/account` — Create Trading Account
 
-Same fields as the list entry, plus `signature_type`.
-
-#### POST `/v3/account/deposit/polymarket` — Get Deposit Instructions
-
-Takes no amount — returns where to send funds. Deposits credit automatically once the transfer lands.
+Creates a Privy server wallet-backed trading account. Limit: 3 active trading accounts per user.
 
 ```json
+// Request
+{ "name": "btc-carry" }
+
 // Response
 {
-  "deposit_address": "0x1234...abcd",
+  "account": {
+    "id": "acct_...",
+    "label": "btc-carry",
+    "account_index": 2,
+    "wallet_address": "0x5678901234567890123456789012345678901234",
+    "wallet_id": "privy-wallet-id",
+    "status": "active"
+  }
+}
+```
+
+Error `409 trading_account_limit_reached` means the user already has 3 active trading accounts.
+
+#### PATCH `/v3/account/{address}` — Rename Trading Account
+
+```json
+// Request
+{ "name": "fed-spread" }
+
+// Response
+{
+  "account": {
+    "name": "fed-spread",
+    "account_index": 2,
+    "wallet_address": "0x5678901234567890123456789012345678901234"
+  }
+}
+```
+
+#### POST `/v3/account/{address}/polymarket` — Bootstrap Polymarket
+
+Bootstraps Polymarket setup for an owned trading-account wallet. This returns onboarding steps and accepted assets; it does **not** return a deposit address.
+
+```json
+{
+  "wallet_id": "privy-wallet-id",
   "chain": "polygon",
-  "accepted_assets": ["pUSD", "USDC", "USDC.e"],
-  "gasless": true,
-  "message": "Send pUSD or USDC to deposit_address on Polygon. No gas needed."
+  "chain_id": 137,
+  "account": {
+    "type": "trading_account",
+    "name": "fed-spread",
+    "account_index": 2,
+    "wallet_address": "0x5678901234567890123456789012345678901234"
+  },
+  "onboarding": {
+    "target": "polymarket",
+    "account_type": "trading_account",
+    "next_step": "deposit_polygon_assets",
+    "steps": [
+      { "id": "verify_trading_account_wallet", "status": "complete" },
+      { "id": "deposit_polygon_assets", "status": "ready" },
+      { "id": "convert_to_pusd", "status": "available_after_deposit" }
+    ]
+  },
+  "accepted_assets": [
+    {
+      "symbol": "USDC",
+      "address": "0x3c499c542cef5e3811e1192ce70d8cc03d5c3359",
+      "decimals": 6
+    }
+  ],
+  "gasless": true
 }
 ```
 
-There is no deposit status endpoint — verify arrival by polling `GET /v3/account/wallets` for the updated balance.
+#### GET `/v3/account/{address}/status/polymarket` — Readiness and Balances
 
-#### POST `/v3/account/withdraw/polymarket` — Withdraw (NOT YET LIVE)
-
-Accepts `{ "amount": 50.0, "to_address": "0x..." }` but currently returns a pending stub:
+Use this before deployment start. The v3 route reconciles approvals and CLOB credentials when possible and checks Polygon balances.
 
 ```json
-{ "status": "pending", "amount_usdc": 50, "message": "Withdrawal via relayer — implementation pending." }
+{
+  "chain": "polygon",
+  "chain_id": 137,
+  "wallet": {
+    "address": "0x5678901234567890123456789012345678901234",
+    "name": "fed-spread",
+    "index": 2
+  },
+  "balance": {
+    "minimum": "5",
+    "usdc": "10.25",
+    "usdcNative": "10.25",
+    "usdcE": "0",
+    "pusd": "8.00",
+    "pol": "0.01",
+    "meetsMinimum": true
+  },
+  "onboarding": {
+    "ready": true,
+    "onboarded": true,
+    "approvalsSet": true
+  },
+  "polymarketApi": {
+    "credentialsStored": true
+  }
+}
 ```
 
-Do not present this as a working withdrawal.
+#### GET `/v3/account/{address}/deposit-link` — Generate Deposit Links
 
-#### POST `/v3/account/setup-polymarket` — Re-run Provisioning
-
-Ensures the default wallet exists with approvals and CLOB credentials. Useful if onboarding was interrupted.
+Generates wallet deep links for depositing native USDC to an owned trading-account wallet. Query params: `chain` (`polygon` or `arbitrum`, default `arbitrum`), `amount` (default `10`), and `wallet` (`all`, `metamask`, `trust`, `coinbase`, etc.).
 
 ```json
+{
+  "chain": "polygon",
+  "chain_id": 137,
+  "token": {
+    "symbol": "USDC",
+    "address": "0x3c499c542cef5e3811e1192ce70d8cc03d5c3359",
+    "decimals": 6
+  },
+  "amount": "10",
+  "amount_atoms": "10000000",
+  "wallet_address": "0x5678901234567890123456789012345678901234",
+  "selected_wallet": "all",
+  "links": {
+    "metamask": "https://...",
+    "eip681": "ethereum:pay-..."
+  }
+}
+```
+
+### Portfolio Funding
+
+#### POST `/v3/portfolio/polymarket/deposit` — Deposit Polygon USDC to Polymarket
+
+Wraps Polygon USDC or USDC.e held by an owned Superior wallet into Polymarket pUSD. This is an on-chain action using the platform-managed wallet; present the details and get confirmation when user intent is not already explicit.
+
+```json
+// Request
+{
+  "chain": "polygon",
+  "asset_address": "0x3c499c542cef5e3811e1192ce70d8cc03d5c3359",
+  "amount": "10",
+  "from": "0x5678901234567890123456789012345678901234"
+}
+
 // Response
 {
-  "status": "completed",
-  "wallet_id": "wal_abc123",
-  "deposit_wallet": "0x1234...abcd",
-  "approvals_set": true,
-  "clob_credentials": true,
-  "builder_code": "0x9132..."
+  "txHash": "0x...",
+  "deposit": {
+    "id": "dep_...",
+    "venue": "polymarket",
+    "amount": "10",
+    "depositedAmount": "10",
+    "status": "completed",
+    "superiorWalletAddress": "0x5678901234567890123456789012345678901234",
+    "polygonBalance": "0",
+    "pusdBalance": "10",
+    "bridgeTxHash": "0x..."
+  }
 }
 ```
 
-> `POST /v3/account/keys`, `GET /v3/account/keys`, and `POST /v3/account/claim` are platform-internal endpoints used by the Superior Trade web terminal (Privy account linking). Agents should not need them.
+Requirements: `chain`, `asset_address`, `amount`, and `from` are required strings. `chain` must be `polygon`; `asset_address` must be Polygon USDC or USDC.e; minimum amount is 5 USDC.
+
+#### POST `/v3/portfolio/polymarket/exit` — Close Polymarket Portfolio
+
+Closes all Polymarket positions and cancels orders for the selected wallet. This is portfolio-level, not deployment-level; `/v3/deployment/{id}/exit` does not exist.
+
+```json
+// Request
+{ "tradingAccountId": "acct_..." }
+
+// Response
+{
+  "orders_cancelled": 3,
+  "positions_closed": 2,
+  "wallet_address": "0x5678901234567890123456789012345678901234"
+}
+```
+
+Before calling this, tell the user it closes all Polymarket positions/orders for that wallet and get explicit confirmation.
 
 ### Markets
 
@@ -381,82 +460,19 @@ Search rules:
 Each outcome (Yes/No) is a separate tradeable instrument:
 
 ```
-{condition_id}-{token_id}.POLYMARKET
+{clobTokenId}.POLYMARKET
 ```
 
-Do not derive or guess `condition_id` / `token_id` values from search candidates. Market search is for finding the exact `slug` and data coverage. If a strategy requires explicit instruments, use values from a validated market-detail/orderbook source when that API is available, or ask the user for the exact instrument.
+Do not derive or guess token IDs from search candidates. Market search is for finding the exact `slug` and data coverage; it intentionally does not return outcome token IDs. Backtests can resolve market dataset instruments from `marketSlugs[]`; live deployment config must include a validated `instrument_id` such as `"1234567890.POLYMARKET"`.
 
-### Strategy
+### Strategy Source
 
-#### POST `/v3/strategy` — Create + Validate
+There is no `/v3/strategy` create/list/detail endpoint in the current `apps/api` main surface. Strategies are supplied inline:
 
-```json
-// Request
-{
-  "code": "from nautilus_trader.trading import Strategy\n\nclass MyStrategyConfig...",
-  "config": {
-    "instrument_id": "0xdd22472e...-21742633....POLYMARKET",
-    "trade_size": 10.0
-  },
-  "venue": "polymarket"
-}
-```
+- Backtests: `POST /v3/backtest` with `strategyId`, optional `strategySource`, and optional `strategyConfig`.
+- Live deployments: `POST /v3/deployment` with `deployment.code` and `deployment.config`.
 
-`code` is required. `config` is the constructor kwargs for the strategy's config class. `venue` defaults to `"polymarket"`.
-
-```json
-// Response (200) — valid
-{
-  "id": "strat_abc123",
-  "status": "valid",
-  "strategy_class": "MyStrategy",
-  "config_class": "MyStrategyConfig"
-}
-
-// Response (422) — invalid (record is still created, with the errors stored)
-{
-  "id": "strat_abc123",
-  "status": "invalid",
-  "errors": [
-    { "type": "syntax", "message": "Line 15: unexpected indent" },
-    { "type": "import", "message": "Blocked import: 'os' at line 2 (not in allowlist)" },
-    { "type": "sandbox", "message": "Blocked name: 'eval' at line 30" }
-  ]
-}
-```
-
-**Validation is allowlist-based.** Only these imports are permitted:
-
-- `nautilus_trader.*` (config, model, trading, etc.)
-- Standard library: `decimal`, `math`, `json`, `datetime`, `collections`, `dataclasses`, `enum`, `functools`, `itertools`, `typing`, `abc`, `numbers`, `operator`, `statistics`, `time`
-- `numpy`, `pandas`
-
-Additionally blocked anywhere in the code: `eval`, `exec`, `open`, `getattr`/`setattr`, `globals`, `__import__`, dunder attribute access (`__class__`, `__globals__`, ...), `chr()`, and suspicious path strings. The code must contain exactly one class inheriting from `Strategy`.
-
-#### GET `/v3/strategy` — List My Strategies
-
-```json
-{
-  "strategies": [
-    {
-      "id": "strat_abc123",
-      "status": "valid",
-      "strategy_class": "Carry",
-      "config_class": "CarryConfig",
-      "venue": "polymarket",
-      "created_at": "2026-06-02T10:00:00Z"
-    }
-  ]
-}
-```
-
-#### GET `/v3/strategy/{id}` — Strategy Detail
-
-Returns `id`, `status`, `strategy_class`, `config_class`, `venue`, `config`, `errors`, `created_at`.
-
-#### DELETE `/v3/strategy/{id}`
-
-Response: `{ "deleted": true }`. Returns `403` if the strategy belongs to another user.
+Keep generated strategy code self-contained and NautilusTrader-compatible. Avoid filesystem/network operations, private-key handling, and hidden side effects.
 
 ### Backtest
 
@@ -485,7 +501,11 @@ Response: `{ "deleted": true }`. Returns `403` if the strategy belongs to anothe
   "backtestId": "bt_xyz789",
   "strategyId": "strat_abc123",
   "status": "queued",
-  "resultUri": "gs://.../backtest-results/polymarket/tenant=tenant_a/date=2026-06-17/bt_xyz789.json"
+  "executionCluster": "london-poc",
+  "namespace": "superior-trade",
+  "resultUri": "gs://.../backtest-results/polymarket/tenant=tenant_a/date=2026-06-17/bt_xyz789.json",
+  "plannedResources": ["ConfigMap", "Job", "NautilusBacktestRun"],
+  "resources": []
 }
 ```
 
@@ -580,110 +600,123 @@ Before suggesting deployment, always run a backtest first. If the backtest produ
 
 #### POST `/v3/deployment` — Create
 
-```json
-// Request — wallet_id optional, defaults to the user's default wallet
-{ "strategy_id": "strat_abc123", "wallet_id": "wal_abc123" }
-
-// Response
-{ "id": "dep_abc123", "wallet_id": "wal_abc123", "status": "created" }
-```
-
-Errors: `400` missing strategy_id or no wallet, `404` strategy/wallet not found, `422` strategy not valid.
-
-#### GET `/v3/deployment` — List My Deployments
+Plans and persists a single v3 Polymarket deployment. Alias: `POST /v3/deployments`.
 
 ```json
+// Request
 {
-  "deployments": [
-    { "id": "dep_abc123", "strategy_id": "strat_abc123", "wallet_id": "wal_abc123", "status": "running", "created_at": "..." }
-  ]
+  "region": "london",
+  "deployment": {
+    "code": "from nautilus_trader.trading import Strategy\n...",
+    "config": {
+      "venue": "polymarket",
+      "market": "btc-120k",
+      "instrument_id": "1234567890.POLYMARKET",
+      "trade_size_pusd": 10
+    }
+  }
+}
+
+// Response — 202
+{
+  "deployment": {
+    "id": "01k...",
+    "status": "starting"
+  },
+  "executionCluster": "london-poc",
+  "namespace": "superior-trade",
+  "region": "london",
+  "activeDeploymentIds": ["01k..."],
+  "plannedResources": ["NautilusTenantRuntime"],
+  "resources": []
 }
 ```
 
-#### PUT `/v3/deployment/{id}/status` — Start or Stop
+`deployment.code` and `deployment.config` are required. For Polymarket deployments, `deployment.config.instrument_id` must be formatted as `<clobTokenId>.POLYMARKET`. If runtime images or artifacts are not ready, the response is `409` with `deployment.status: "blocked"` and a `reason`.
+
+#### POST `/v3/deployment/{id}/credentials` — Store Wallet Metadata
+
+```json
+// Request
+{ "wallet_address": "0x1234567890123456789012345678901234567890" }
+
+// Response
+{
+  "id": "01k...",
+  "credentials_status": "stored",
+  "exchange": "polymarket",
+  "wallet_address": "0x1234567890123456789012345678901234567890"
+}
+```
+
+The endpoint rejects `private_key` and rejects wallet addresses not owned by the authenticated user.
+
+#### PATCH/PUT `/v3/deployment/{id}/status` — Start or Stop
 
 ```json
 // Request
 { "action": "start" }   // or "stop"
 
 // Response (start)
-{ "id": "dep_abc123", "status": "running", "method": "process", "pid": 12345, "podName": null }
+{
+  "id": "01k...",
+  "status": "running",
+  "previous_status": "pending",
+  "k8s_deployment_name": "tenant-auth-user-runtime",
+  "namespace": "superior-trade",
+  "executionCluster": "london-poc",
+  "activeDeploymentIds": ["01k..."],
+  "plannedResources": ["NautilusTenantRuntime"],
+  "resources": []
+}
 
 // Response (stop)
-{ "id": "dep_abc123", "status": "stopped" }
-```
-
-- Starting auto-generates CLOB credentials for the deployment's wallet if needed.
-- `409` if already running; `500` with `{ "error": "..." }` if the engine fails to start (deployment is marked `failed` with the error stored).
-
-**Statuses:** `created` → `running` → `stopped` | `failed`
-
-#### POST `/v3/deployment/{id}/exit` — Emergency Exit
-
-Stops the deployment and closes positions immediately.
-
-```json
-{ "id": "dep_abc123", "status": "stopped", "message": "Emergency exit — all positions closed" }
-```
-
-Before calling this, show the user the open positions (`GET /v3/deployment/{id}/positions`) and get confirmation — exits fill at market price and are irreversible.
-
-#### GET `/v3/deployment/{id}` — Detail
-
-```json
 {
-  "id": "dep_abc123",
-  "strategy_id": "strat_abc123",
-  "status": "running",
-  "positions": [ ... ],
-  "pnl": { ... },
-  "error": null,
-  "created_at": "..."
+  "id": "01k...",
+  "status": "stopped",
+  "previous_status": "running",
+  "activeDeploymentIds": []
 }
 ```
 
-The server reconciles status on read: if a deployment is marked `running` but its process has died, this call flips it to `stopped`. Always trust the status from the latest GET, not a cached value.
+Start requires:
 
-#### GET `/v3/deployment/{id}/positions` — Positions
+- Deployment status is `pending` or `stopped`
+- Credential metadata is stored for every active deployment
+- Polymarket readiness checker passes: onboarded, approvals set, and minimum balance met
+- Deployment config contains valid `<clobTokenId>.POLYMARKET` instrument IDs
 
-```json
-{
-  "positions": [
-    {
-      "instrument_id": "0xdd22472e...-21742633....POLYMARKET",
-      "side": "LONG",
-      "quantity": 100.0,
-      "entry_price": 0.45,
-      "current_price": 0.52,
-      "unrealized_pnl": 7.0
-    }
-  ]
-}
-```
+#### GET `/v3/deployment/{id}/logs` — Runtime Logs
 
-#### GET `/v3/deployment/{id}/pnl` — P&L
+Returns Cloud Logging entries for the tenant runtime. Alias: `GET /v3/deployments/{id}/logs`.
 
 ```json
 {
-  "realized_pnl": 45.20,
-  "unrealized_pnl": 7.0,
-  "total_pnl": 52.20,
-  "total_orders": 12,
-  "total_fills": 12
+  "deployment_id": "01k...",
+  "items": [
+    { "timestamp": "2026-06-18T10:00:00.000Z", "message": "started", "severity": "INFO" }
+  ],
+  "nextCursor": "..."
 }
 ```
 
-Returns zeros for all fields if the deployment hasn't reported yet.
+#### DELETE `/v3/deployment/{id}` — Delete Stopped Deployment
+
+Soft-deletes an owned v3 deployment. Running deployments must be stopped first.
+
+```json
+{ "id": "01k...", "message": "Deployment deleted" }
+```
 
 ### Shared API Notes
 
-- **Auth errors (401):** `{ "error": "Unauthorized", "message": "Include 'Authorization: Bearer <api_key>' header. Get a key via POST /v3/account/onboard." }`
-- **Not found (404):** `{ "error": "Strategy not found" }` (resource name varies)
+- **Auth errors (401):** `{ "error": "unauthorized", "message": "Missing or invalid authentication" }`
+- **Not found (404):** `{ "error": "not_found", "message": "Route not found" }` or resource-specific `not_found`
 - All timestamps are **UTC (ISO8601)**. Convert to the user's local timezone when presenting times conversationally.
 
 ## Strategy Authoring (NautilusTrader)
 
-Write a NautilusTrader `Strategy` subclass in Python. The strategy receives real-time market data and submits orders. Remember the import allowlist (see [Strategy validation](#post-v3strategy--create--validate)) — `nautilus_trader`, common stdlib, `numpy`, `pandas` only.
+Write a NautilusTrader `Strategy` subclass in Python. The strategy receives real-time market data and submits orders. Keep the code self-contained and avoid filesystem, network, private-key, or environment access.
 
 ### Strategy Structure
 
@@ -1057,12 +1090,12 @@ class SpreadCapture(Strategy):
 
 ## Troubleshooting
 
-### Strategy Validation Failures
+### Strategy Source Issues
 
-- **`type: "syntax"`** — Python syntax error; the message includes the line number.
-- **`type: "import"`** — an import outside the allowlist. Rewrite using only `nautilus_trader`, the permitted stdlib modules, `numpy`, or `pandas`.
-- **`type: "sandbox"`** — blocked construct (`eval`, `open`, dunder access, `chr()`, etc.). Remove it; there is no override.
-- **`type: "structure"`** — no class inheriting from `Strategy` was found. Exactly one is required.
+- **Python syntax/import errors** — fix the inline `strategySource` or `deployment.code`; there is no separate `/v3/strategy` validation endpoint.
+- **Config mismatch** — make sure `strategyConfig` or `deployment.config` keys match the `StrategyConfig` class fields.
+- **Missing instrument** — live deployment config requires `instrument_id` formatted as `<clobTokenId>.POLYMARKET`; do not use condition IDs or market slugs as instrument IDs.
+- **Backtest-only mismatch** — backtests replay trade ticks. Quote-only strategies may run live but produce zero backtest callbacks.
 
 ### Backtest Failures
 
@@ -1072,17 +1105,18 @@ class SpreadCapture(Strategy):
 
 ### Deployment Issues
 
-- **Start returns 500** — the engine failed to launch; the deployment is marked `failed` and the message is stored in the `error` field of `GET /v3/deployment/{id}`.
-- **Status flips from running to stopped on read** — the server reconciles status against the actual process on every GET. If this happens unexpectedly, the strategy likely crashed; check the deployment's `error` field.
-- **Orders rejected at the venue** — usually an unfunded wallet (check `GET /v3/account/wallets`), an order below the 5 pUSD / 5 share minimum, or a market that has resolved or closed.
+- **`credentials_required`** — call `POST /v3/deployment/{id}/credentials` with an owned wallet address before starting.
+- **`deployment_not_ready`** — call `GET /v3/account/{address}/status/polymarket` and resolve blockers: not onboarded, approvals missing, or balance below 5 USDC.
+- **Start returns 500** — resource submission failed. Check `GET /v3/deployment/{id}/logs` if a runtime exists, otherwise retry after the platform issue is resolved.
+- **Orders rejected at the venue** — usually readiness/balance, an order below the 5 pUSD / 5 share minimum, invalid instrument ID, or a market that has resolved or closed.
 - **Rate limits** — if order submissions exceed ~30/minute, the venue throttles. Reduce re-quote frequency (e.g. only re-quote when the mid moves more than a threshold) rather than rapid stop/start cycles.
 
 ### Diagnosing Zero-Trade Deployments
 
 Check in order:
 
-1. **Wallet balance** — `GET /v3/account/wallets` for the deployment's wallet
-2. **Deployment status** — `GET /v3/deployment/{id}` actually `running` with no `error`
+1. **Wallet readiness** — `GET /v3/account/{address}/status/polymarket` shows `onboarding.ready: true` and sufficient balance
+2. **Runtime logs** — `GET /v3/deployment/{id}/logs` for startup errors, order rejections, or strategy exceptions
 3. **Market still active** — not resolved, `end_date` in the future
 4. **Strategy conditions** — are entry thresholds reachable at current prices? (e.g. a carry strategy with `min_probability: 0.90` does nothing while the market trades at 0.60)
 5. **Order minimums** — trade size at least 5 pUSD (market BUY) / 5 shares (limit/sell)
