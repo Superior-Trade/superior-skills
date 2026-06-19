@@ -21,12 +21,6 @@ Use this skill only for Aerodrome trading on Base through Superior Trade. Aerodr
 When behavior is unclear, inspect these local sources before answering:
 
 - Production API: `https://api.superior.trade`
-- API: `/Users/trmaphi/sources/superior-trade/api`
-- Freqtrade fork: `/Users/trmaphi/sources/superior-trade/freqtrade-upstream`
-- Aerodrome exchange wrapper: `freqtrade-upstream/freqtrade/exchange/aerodrome.py`
-- Aerodrome CCXT implementation: `freqtrade-upstream/ccxt/python/ccxt/aerodrome.py`
-- API validation: `api/src/freqtrade/schema.ts`
-- API config padding: `api/src/freqtrade/configurationsOp.ts`
 
 ## Non-Negotiables
 
