@@ -1,7 +1,7 @@
 ---
 name: Polymarket Prediction Market Trading
-version: 1.1.0
-updated: 2026-06-18
+version: 1.1.1
+updated: 2026-06-19
 description: "Discover Polymarket markets, run v3 filled-data backtests, and plan/start live Nautilus deployments through Superior Trade's managed cloud."
 homepage: https://superior.trade
 source: https://github.com/Superior-Trade
@@ -19,6 +19,10 @@ env:
 externalEndpoints:
   - url: https://api.superior.trade/v3
     purpose: "Trading accounts, Polymarket onboarding/funding, market discovery, filled-data backtesting, deployment planning/status, credential metadata, and logs"
+  - url: https://data-api.polymarket.com
+    purpose: "Read-only Polymarket public position lookup by wallet address"
+  - url: https://clob.polymarket.com
+    purpose: "Authenticated Polymarket CLOB reads for open orders and trade history"
 ---
 
 # Polymarket Prediction Market Trading
@@ -76,6 +80,13 @@ Current account/funding endpoints:
 - `POST /v3/portfolio/polymarket/deposit`
 - `POST /v3/portfolio/polymarket/exit`
 
+Current Polymarket state checks:
+
+- `GET https://data-api.polymarket.com/positions` — public current positions by wallet address
+- `GET https://clob.polymarket.com/data/orders` — authenticated open orders through Polymarket CLOB credentials/client
+- `GET https://clob.polymarket.com/data/order/{orderId}` — authenticated single-order lookup
+- `GET https://clob.polymarket.com/data/trades` — authenticated fills/trade history
+
 Do not advertise old/stale paths: `/v3/account/onboard`, `/v3/account/wallets`, `/v3/account/deposit/polymarket`, `/v3/account/withdraw/polymarket`, or `/v3/deployment/{id}/exit`.
 
 ## Safety
@@ -98,6 +109,7 @@ This skill requires exactly **one credential**: a Superior Trade API key. The on
 | List/create/rename trading accounts                                                   | Access other users' data             |
 | Bootstrap Polymarket setup, check readiness, and deposit Polygon USDC/USDC.e to pUSD   | Export, accept, or view private keys |
 | Search markets and run filled-data backtests                                          | Withdraw to an external address      |
+| Read current Polymarket positions and open orders                                      | Guess holdings from deployment state |
 | Plan deployments, store wallet-address credential metadata, start/stop/delete v3 runs  | Invent balances or trade results     |
 | Close all Polymarket positions/orders with `/v3/portfolio/polymarket/exit` after confirmation | Transfer or bridge arbitrary funds   |
 
@@ -131,6 +143,7 @@ Do NOT start a live deployment without an explicit affirmative response.
 
 - **Verification-first:** Every factual claim about balance, market price, position, or deployment status MUST be backed by an API call in the current turn. NEVER assume → report → verify later.
 - **Anti-hallucination:** If you can't call the API, say "I haven't checked yet." Every number must come from a real response.
+- **Position/order state:** When the user asks what they hold, whether orders are open, whether a bot traded, or whether it is safe to stop/exit, fetch live Polymarket positions/orders first. Deployment status does not prove a position exists.
 - **Backtest before deploy:** Always run a backtest and review results with the user before the first live deployment of any strategy.
 - **Conversational:** Make API calls directly and present results conversationally. Show raw payloads only on request.
 - **Proactive:** Ask for missing info conversationally, one concern at a time.
@@ -149,15 +162,16 @@ If the same task fails 3+ times (e.g. strategy source/config keeps failing, back
 1. Confirm auth      →  Use existing `SUPERIOR_TRADE_PM_API_KEY`
 2. Account setup     →  GET/POST /v3/account, then POST /v3/account/{address}/polymarket
 3. Check readiness   →  GET /v3/account/{address}/status/polymarket; deposit if needed
-4. Deposit if needed →  POST /v3/portfolio/polymarket/deposit using Polygon USDC/USDC.e
-5. Discover markets  →  POST /v3/markets/search — find candidate market slugs matching the user's interest; pass exact Polymarket event URLs directly when the user provides one
-6. Write strategy    →  Author NautilusTrader Python strategy code from the closest archetype
-7. Backtest          →  POST /v3/backtest with `strategyId`, `strategySource`, and `strategyConfig`
-8. Review results    →  Poll/read backtest status/result/logs; analyze performance; iterate or proceed
-9. Plan deployment   →  POST /v3/deployment with `{ deployment: { code, config } }`
-10. Store credentials → POST /v3/deployment/{id}/credentials with an owned `wallet_address`
-11. Start            →  Confirm with user → PATCH/PUT /v3/deployment/{id}/status `{ "action": "start" }`
-12. Monitor/stop     →  Status/logs; stop with PATCH/PUT `/v3/deployment/{id}/status` `{ "action": "stop" }`
+4. Read live state   →  For holdings/order questions, fetch positions and open orders for the owned wallet
+5. Deposit if needed →  POST /v3/portfolio/polymarket/deposit using Polygon USDC/USDC.e
+6. Discover markets  →  POST /v3/markets/search — find candidate market slugs matching the user's interest; pass exact Polymarket event URLs directly when the user provides one
+7. Write strategy    →  Author NautilusTrader Python strategy code from the closest archetype
+8. Backtest          →  POST /v3/backtest with `strategyId`, `strategySource`, and `strategyConfig`
+9. Review results    →  Poll/read backtest status/result/logs; analyze performance; iterate or proceed
+10. Plan deployment  →  POST /v3/deployment with `{ deployment: { code, config } }`
+11. Store credentials → POST /v3/deployment/{id}/credentials with an owned `wallet_address`
+12. Start            →  Confirm with user → PATCH/PUT /v3/deployment/{id}/status `{ "action": "start" }`
+13. Monitor/stop     →  Status/logs plus live positions/orders; stop with PATCH/PUT `/v3/deployment/{id}/status` `{ "action": "stop" }`
 ```
 
 Deployment start requires both credential metadata and explicit user confirmation.
@@ -192,7 +206,8 @@ Before `PATCH /v3/deployment/{id}/status` or `PUT /v3/deployment/{id}/status` �
 3. **Credentials metadata stored** — `POST /v3/deployment/{id}/credentials` with an owned `wallet_address`; do not send private keys.
 4. **Market selected** — `POST /v3/markets/search` → confirm the exact `slug` to use. If the user gives a Polymarket event URL, pass that URL as the search query so child markets can be expanded. If search returns multiple plausible candidates, show the candidate questions/slugs and ask the user to choose. For backtests, require `backtestSupported: true`, `coverageStatus: "available"`, and a requested timerange inside the candidate `coverage`.
 5. **Deployment config valid** — Polymarket live deployment config must include `instrument_id` formatted as `<clobTokenId>.POLYMARKET`.
-6. **User confirmation** — show the deployment summary and get an explicit "yes".
+6. **Current exposure checked when relevant** — if replacing, restarting, stopping, exiting, or sizing around existing exposure, fetch positions and open orders for the wallet first.
+7. **User confirmation** — show the deployment summary and get an explicit "yes".
 
 Do NOT skip any step or assume it passed without the API call.
 
@@ -397,6 +412,88 @@ Closes all Polymarket positions and cancels orders for the selected wallet. This
 ```
 
 Before calling this, tell the user it closes all Polymarket positions/orders for that wallet and get explicit confirmation.
+
+### Polymarket Positions and Orders
+
+Use these checks whenever the user asks about current holdings, open bets, pending orders, whether a deployment traded, or whether it is safe to stop/exit. Do not infer live exposure from deployment status alone.
+
+Read-only checks do not require user confirmation. Order placement, cancellation, portfolio exit, and deployment start still require explicit confirmation.
+
+#### GET `https://data-api.polymarket.com/positions` — Current Positions
+
+Positions are public by wallet address. First get the owned wallet from `GET /v3/account` or the selected deployment credentials, then call:
+
+```http
+GET https://data-api.polymarket.com/positions?user=0x5678901234567890123456789012345678901234&sizeThreshold=0&limit=500&sortBy=TOKENS&sortDirection=DESC
+```
+
+Summarize:
+
+- Number of open positions
+- Largest exposures by market/outcome
+- Current price/probability when present
+- Unrealized PnL when present
+- Any tiny dust positions separately
+
+If the response is empty, say the wallet has no current Polymarket positions verified by the position API.
+
+#### CLOB Open Orders — Authenticated Order State
+
+Open orders require authenticated Polymarket CLOB credentials/client context. Use the authenticated client when available; never ask the user to paste a CLOB secret/passphrase into chat.
+
+```ts
+const orders = await clobClient.getOpenOrders({ market, asset_id }, true)
+const order = await clobClient.getOrder(orderId)
+```
+
+Underlying endpoints:
+
+- `GET https://clob.polymarket.com/data/orders`
+- `GET https://clob.polymarket.com/data/order/{orderId}`
+
+Filter params are optional:
+
+```json
+{
+  "market": "0x...",
+  "asset_id": "1234567890",
+  "id": "order-id"
+}
+```
+
+Summarize each meaningful order with:
+
+- Market/outcome when known
+- Side, price, original size, matched size, and unmatched size
+- Status, order type, created time, expiration
+
+Unmatched size is `original_size - size_matched`. If authenticated order reads are unavailable in the current context, say that positions were checked but authenticated open orders could not be fetched from this environment.
+
+#### CLOB Trades — Fill History
+
+Use this when the user asks "did it trade?", "what filled?", or wants debugging for a deployment that appears idle.
+
+```ts
+const trades = await clobClient.getTrades({ maker_address: walletAddress, market, asset_id }, true)
+```
+
+Underlying endpoint:
+
+- `GET https://clob.polymarket.com/data/trades`
+
+Present fills as market/outcome, side, price, size, timestamp, and related order ID when available. Do not use trade history as proof of current exposure; check current positions too.
+
+#### State Check Pattern
+
+For "what do I have open?" use this order:
+
+1. `GET /v3/account` to identify the selected owned wallet if needed.
+2. `GET /v3/account/{address}/status/polymarket` for readiness and balances.
+3. `GET https://data-api.polymarket.com/positions?...` for current positions.
+4. Authenticated CLOB `getOpenOrders()` for pending orders, if client credentials are available.
+5. Authenticated CLOB `getTrades()` only when the user asks about fills/history or debugging.
+
+For "exit everything", first show the verified positions/orders summary, then ask for explicit confirmation before calling `POST /v3/portfolio/polymarket/exit`.
 
 ### Markets
 
