@@ -3,17 +3,6 @@ name: donchian-strong-regime
 description: Use when writing a trend-breakdown short gated by a triple-confirmed strong-bear regime on Superior Trade — anything described as donchian short, structural breakdown, regime-gated trend follower, EMA-separation + ADX + N-bar return confirmation. Validated +6.69%/100% win/0% DD on BTC over 162d; designed to fire only in confirmed bear regimes (zero trades in chop by design). Pairs with bollinger-reverter-4h for full-regime coverage.
 version: 0.1.0
 updated: 2026-05-18
-license: see LICENSE
-metadata:
-  openclaw:
-    requires:
-      env:
-        - SUPERIOR_TRADE_API_KEY
-    primaryEnv: SUPERIOR_TRADE_API_KEY
-    envVars:
-      - name: SUPERIOR_TRADE_API_KEY
-        required: true
-        description: Superior Trade API key, sent as the x-api-key header.
 ---
 
 # Donchian Strong-Regime Short
