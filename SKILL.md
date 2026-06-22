@@ -1,6 +1,18 @@
 ---
 name: superior-trade-auth
-description: Request and use Superior Trade API keys for https://api.superior.trade. Use when Codex needs to onboard a user by email, request an API key with POST /auth/sign-in/magic-link, explain x-api-key authentication, or recover from missing/invalid Superior Trade API credentials.
+description: Request and use a Superior Trade API key for https://api.superior.trade. Use when an agent needs to onboard a user by email, request an API key with POST /auth/sign-in/magic-link, set up x-api-key authentication, or recover from missing/invalid Superior Trade credentials (401/403) before backtesting or deploying a strategy.
+license: see LICENSE
+version: "1.0.0"
+metadata:
+  openclaw:
+    requires:
+      env:
+        - SUPERIOR_TRADE_API_KEY
+    primaryEnv: SUPERIOR_TRADE_API_KEY
+    envVars:
+      - name: SUPERIOR_TRADE_API_KEY
+        required: true
+        description: Superior Trade API key, sent as the x-api-key header.
 ---
 
 # Superior Trade Authentication
@@ -46,5 +58,5 @@ The email is verified once the API key is used successfully in an authenticated 
 
 ## Related Skills
 
-- Use `v2/SKILL.md` for Hyperliquid, Aerodrome, Binance strategy backtests, deployments, wallets, funding, and live trading workflows.
-- Use `v3/polymarket/SKILL.md` for Polymarket market discovery, backtests, deployments, and funding workflows.
+- Use the `superior-trade-hyperliquid` skill for Hyperliquid, Aerodrome, Binance strategy backtests, deployments, wallets, funding, and live trading workflows.
+- Use the `polymarket` skill for Polymarket market discovery, backtests, deployments, and funding workflows.
