@@ -58,5 +58,5 @@ The email is verified once the API key is used successfully in an authenticated 
 
 ## Related Skills
 
-- Use `v2/SKILL.md` for Hyperliquid, Aerodrome, Binance strategy backtests, deployments, wallets, funding, and live trading workflows.
-- Use `v3/polymarket/SKILL.md` for Polymarket market discovery, backtests, deployments, and funding workflows.
+- Use the `superior-trade-hyperliquid` skill for Hyperliquid, Aerodrome, Binance strategy backtests, deployments, wallets, funding, and live trading workflows.
+- Use the `polymarket` skill for Polymarket market discovery, backtests, deployments, and funding workflows.

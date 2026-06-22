@@ -7,7 +7,7 @@ updated: 2026-05-18
 
 # DSL Exit Engine — Three-Phase Exit Primitive
 
-A reusable exit primitive that any strategy in `strategies/` can compose. Replaces the ad-hoc trailing-stop logic currently duplicated inside `breakout` with a single, declarative spec.
+A reusable exit primitive that any strategy skill can compose. Replaces the ad-hoc trailing-stop logic currently duplicated inside `breakout` with a single, declarative spec.
 
 Other names this is searchable under: **ratcheting trailing stop**, **two-phase exit**, **ALO-aware exit**, **dynamic stoploss DSL**, **ROI ladder**.
 

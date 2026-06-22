@@ -67,24 +67,24 @@ These pages live alongside this skill in the same repo. Read the matching one wh
 
 ### Strategy templates (Hyperliquid Freqtrade)
 
-- [DCA · Weekly buy](https://github.com/Superior-Trade/superior-skills/blob/main/strategies/dca-weekly.md) — scheduled buys via `adjust_trade_position` (works on calendar trigger, not price)
-- [Grid trading](https://github.com/Superior-Trade/superior-skills/blob/main/strategies/grid-trading.md) — profit-laddered position adjustment + partial take-profits
-- [Funding rate arbitrage](https://github.com/Superior-Trade/superior-skills/blob/main/strategies/funding-rate-arbitrage.md) — capture funding when shorts are paying longs (the most profitable template in our audit)
-- [Funding squeeze](https://github.com/Superior-Trade/superior-skills/blob/main/strategies/funding-squeeze.md) — long when funding is deeply negative AND price is rising; ride the squeeze instead of waiting for carry mean-reversion
-- [Basis arbitrage (directional)](https://github.com/Superior-Trade/superior-skills/blob/main/strategies/basis-arb.md) — long perp when spot–perp basis flips negative with funding negative (directional read; not a hedged arb)
-- [Breakout](https://github.com/Superior-Trade/superior-skills/blob/main/strategies/breakout.md) — Donchian-style breakout with trailing stop (regime-sensitive)
-- [Mean reversion](https://github.com/Superior-Trade/superior-skills/blob/main/strategies/mean-reversion.md) — 2.5σ Bollinger fade with ADX regime filter
-- [Scalping](https://github.com/Superior-Trade/superior-skills/blob/main/strategies/scalping.md) — fast in/out on RSI thrust + volume spike (structural template; tune before deploying)
+- [DCA · Weekly buy](https://github.com/Superior-Trade/superior-skills/blob/main/skills/dca-weekly/SKILL.md) — scheduled buys via `adjust_trade_position` (works on calendar trigger, not price)
+- [Grid trading](https://github.com/Superior-Trade/superior-skills/blob/main/skills/grid-trading/SKILL.md) — profit-laddered position adjustment + partial take-profits
+- [Funding rate arbitrage](https://github.com/Superior-Trade/superior-skills/blob/main/skills/funding-rate-arbitrage/SKILL.md) — capture funding when shorts are paying longs (the most profitable template in our audit)
+- [Funding squeeze](https://github.com/Superior-Trade/superior-skills/blob/main/skills/funding-squeeze/SKILL.md) — long when funding is deeply negative AND price is rising; ride the squeeze instead of waiting for carry mean-reversion
+- [Basis arbitrage (directional)](https://github.com/Superior-Trade/superior-skills/blob/main/skills/basis-arb/SKILL.md) — long perp when spot–perp basis flips negative with funding negative (directional read; not a hedged arb)
+- [Breakout](https://github.com/Superior-Trade/superior-skills/blob/main/skills/breakout/SKILL.md) — Donchian-style breakout with trailing stop (regime-sensitive)
+- [Mean reversion](https://github.com/Superior-Trade/superior-skills/blob/main/skills/mean-reversion/SKILL.md) — 2.5σ Bollinger fade with ADX regime filter
+- [Scalping](https://github.com/Superior-Trade/superior-skills/blob/main/skills/scalping/SKILL.md) — fast in/out on RSI thrust + volume spike (structural template; tune before deploying)
 
 ### Exchange-specific guides
 
-- [Aerodrome / Base](https://github.com/Superior-Trade/superior-skills/blob/main/exchanges/aerodrome.md) — spot AMM swap execution on Base; no order book, no leverage, wallet-balance-driven
+- [Aerodrome / Base](https://github.com/Superior-Trade/superior-skills/blob/main/skills/aerodrome/SKILL.md) — spot AMM swap execution on Base; no order book, no leverage, wallet-balance-driven
 
 ### Optimizations
 
-- [Pre-trade thesis builder](https://github.com/Superior-Trade/superior-skills/blob/main/optimizations/trade-thesis.md) — structured bull/bear analysis, invalidation criteria, and sizing rationale before any live deployment of a new strategy idea
-- [Backtesting best practices](https://github.com/Superior-Trade/superior-skills/blob/main/optimizations/backtesting.md) — window selection, trade-count thresholds, exit-reason mix, parameter sweeps, walk-forward, zero-trade escalation, compute-cost estimation
-- [Fees optimization](https://github.com/Superior-Trade/superior-skills/blob/main/optimizations/fees-optimizations.md) — Freqtrade × Hyperliquid order types, entry/exit pricing, maker vs taker, builder code fee, edge-to-fee budgeting
+- [Pre-trade thesis builder](https://github.com/Superior-Trade/superior-skills/blob/main/skills/trade-thesis/SKILL.md) — structured bull/bear analysis, invalidation criteria, and sizing rationale before any live deployment of a new strategy idea
+- [Backtesting best practices](https://github.com/Superior-Trade/superior-skills/blob/main/skills/backtesting/SKILL.md) — window selection, trade-count thresholds, exit-reason mix, parameter sweeps, walk-forward, zero-trade escalation, compute-cost estimation
+- [Fees optimization](https://github.com/Superior-Trade/superior-skills/blob/main/skills/fees-optimizations/SKILL.md) — Freqtrade × Hyperliquid order types, entry/exit pricing, maker vs taker, builder code fee, edge-to-fee budgeting
 
 ## Safety
 

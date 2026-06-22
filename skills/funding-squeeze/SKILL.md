@@ -175,6 +175,6 @@ Pair format must be `<COIN>/USDC:USDC` (futures perp) — spot doesn't have fund
 
 ## Sources
 
-- Sibling strategy: strategies/funding-rate-arbitrage.md (`funding-rate-arbitrage` skill)
+- Sibling strategy: the `funding-rate-arbitrage` skill
 - Internal: [docs/alpha-scan-improvement-plan.md](https://github.com/Superior-Trade/superior-turborepo/blob/main/docs/alpha-scan-improvement-plan.md) — squeeze-fuel bucket
 - Freqtrade DataProvider — https://www.freqtrade.io/en/stable/strategy-customization/

@@ -214,4 +214,4 @@ class BasisFlippingStrategy(IStrategy):
 
 - Internal plan: [docs/alpha-scan-improvement-plan.md](https://github.com/Superior-Trade/superior-turborepo/blob/main/docs/alpha-scan-improvement-plan.md) — basis-flipping bucket
 - Freqtrade `informative_pairs` — https://www.freqtrade.io/en/stable/strategy-customization/#additional-data-informative_pairs
-- Sibling: strategies/funding-rate-arbitrage.md (`funding-rate-arbitrage` skill)
+- Sibling: the `funding-rate-arbitrage` skill
