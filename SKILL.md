@@ -1,6 +1,18 @@
 ---
 name: superior-trade-auth
-description: Request and use Superior Trade API keys for https://api.superior.trade. Use when Codex needs to onboard a user by email, request an API key with POST /auth/sign-in/magic-link, explain x-api-key authentication, or recover from missing/invalid Superior Trade API credentials.
+description: Request and use a Superior Trade API key for https://api.superior.trade. Use when an agent needs to onboard a user by email, request an API key with POST /auth/sign-in/magic-link, set up x-api-key authentication, or recover from missing/invalid Superior Trade credentials (401/403) before backtesting or deploying a strategy.
+license: see LICENSE
+version: "1.0.0"
+metadata:
+  openclaw:
+    requires:
+      env:
+        - SUPERIOR_TRADE_API_KEY
+    primaryEnv: SUPERIOR_TRADE_API_KEY
+    envVars:
+      - name: SUPERIOR_TRADE_API_KEY
+        required: true
+        description: Superior Trade API key, sent as the x-api-key header.
 ---
 
 # Superior Trade Authentication

@@ -1,0 +1,19 @@
+{
+  "name": "superior-skills",
+  "description": "Agent-native trading skills for Superior Trade — onboard with an API key, then backtest and deploy validated strategies on Hyperliquid and Polymarket. Skills load from the skills/ directory.",
+  "author": {
+    "name": "Superior Trade",
+    "email": "json@superior.trade",
+    "url": "https://superior.trade"
+  },
+  "homepage": "https://github.com/Superior-Trade/superior-skills",
+  "license": "see LICENSE",
+  "keywords": [
+    "trading",
+    "hyperliquid",
+    "polymarket",
+    "backtesting",
+    "ai-agents",
+    "algorithmic-trading"
+  ]
+}

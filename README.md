@@ -107,10 +107,27 @@ curl https://api.superior.trade/v2/backtesting/{id} \
   -H "x-api-key: $SUPERIOR_TRADE_API_KEY"
 ```
 
-Install paths:
-- **OpenClaw**: agent prompt → "Install superior-skills"
-- **ClawHub**: see `.clawhubignore` for skill manifest
-- **Manual**: clone this repo into your agent's skills folder
+## Install
+
+Superior skills follow the open [Agent Skills](https://agentskills.io) standard — one folder per
+skill with a `SKILL.md`. Install through whichever entry point your agent uses:
+
+| Entry point | Command |
+|---|---|
+| **npx skills** (universal — Claude Code, OpenClaw, Cursor, Codex, Gemini CLI, +50) | `npx skills add Superior-Trade/superior-skills` |
+| **GitHub CLI** | `gh skill install Superior-Trade/superior-skills donchian-strong-regime` |
+| **Claude Code** | `/plugin marketplace add Superior-Trade/superior-skills` then `/plugin install superior-skills@superior-trade` |
+| **OpenClaw / ClawHub** | `openclaw skills install superior-skills` &nbsp;·&nbsp; or `openclaw skills install git:Superior-Trade/superior-skills@main` |
+| **From our domain** | point any agent at `https://superior.trade/SKILL.md` |
+| **Manual** | clone this repo and copy `skills/<name>/` into your agent's skills folder |
+
+> **Migration in progress.** Today these commands install the `donchian-strong-regime`
+> reference skill; the rest of the library — onboarding, the other strategies, the intelligence
+> scanner, and Polymarket — is being moved into `skills/` next. Once a skill is migrated you can
+> select just that one with `--skill <name>` (npx) or by naming it (`gh skill install … <name>`).
+
+Every skill needs a **`SUPERIOR_TRADE_API_KEY`** — the `superior-trade-auth` skill walks a new
+user through getting one by email.
 
 ## Workflow
 
