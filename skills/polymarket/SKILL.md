@@ -1,8 +1,8 @@
 ---
 name: polymarket
-version: 1.1.1
-updated: 2026-06-19
-description: "Discover Polymarket markets, run v3 filled-data backtests, and plan/start live Nautilus deployments through Superior Trade's managed cloud."
+version: 1.1.2
+updated: 2026-06-23
+description: "Discover Polymarket markets, place single immediate market orders, run v3 filled-data backtests, and plan/start live Nautilus deployments through Superior Trade's managed cloud."
 homepage: https://superior.trade
 source: https://github.com/Superior-Trade
 primaryEnv: SUPERIOR_TRADE_PM_API_KEY
@@ -10,15 +10,15 @@ auth:
   type: api_key
   env: SUPERIOR_TRADE_PM_API_KEY
   header: "x-api-key"
-  scope: "Read-write the user's own v3 trading accounts, Polymarket funding actions, backtests, and deployments. Can bootstrap Polymarket setup, deposit Polygon USDC/USDC.e into pUSD, plan/start live deployments after explicit confirmation, and close Polymarket positions. Cannot export private keys or access other users' data."
+  scope: "Read-write the user's own v3 trading accounts, Polymarket funding actions, immediate market orders, backtests, and deployments. Can bootstrap Polymarket setup, deposit Polygon USDC/USDC.e into pUSD, place a single confirmed Polymarket market order, plan/start live deployments after explicit confirmation, and close Polymarket positions. Cannot export private keys or access other users' data."
 env:
   - name: SUPERIOR_TRADE_PM_API_KEY
-    description: "Superior Trade prediction market API key. The main API accepts x-api-key for product API keys and Bearer auth for user sessions. Can create/manage trading accounts, Polymarket onboarding/funding, v3 backtests, and deployments. Cannot export private keys or access other users' data."
+    description: "Superior Trade prediction market API key. The main API accepts x-api-key for product API keys and Bearer auth for user sessions. Can create/manage trading accounts, Polymarket onboarding/funding, immediate Polymarket market orders, v3 backtests, and deployments. Cannot export private keys or access other users' data."
     required: true
     type: api_key
 externalEndpoints:
   - url: https://api.superior.trade/v3
-    purpose: "Trading accounts, Polymarket onboarding/funding, market discovery, filled-data backtesting, deployment planning/status, credential metadata, and logs"
+    purpose: "Trading accounts, Polymarket onboarding/funding, immediate market orders, market discovery, filled-data backtesting, deployment planning/status, credential metadata, and logs"
   - url: https://data-api.polymarket.com
     purpose: "Read-only Polymarket public position lookup by wallet address"
   - url: https://clob.polymarket.com
@@ -27,7 +27,7 @@ externalEndpoints:
 
 # Polymarket Prediction Market Trading
 
-Trade prediction markets on Polymarket through Superior Trade. Discover markets, write NautilusTrader strategies, backtest against historical trade data, and deploy live — all through one API.
+Trade prediction markets on Polymarket through Superior Trade. Discover markets, place single immediate market orders, write NautilusTrader strategies, backtest against historical trade data, and deploy live — all through one API.
 
 **Base URL:** Use the environment-configured Superior Trade API base URL. Production is `https://api.superior.trade/v3`; UAT may use `https://api-uat.superior.trade/v3`.
 **Auth:** Prefer `x-api-key: <api_key>` for Superior Trade product API keys. Browser/session callers may use `Authorization: Bearer <token>`.
@@ -79,6 +79,51 @@ Current account/funding endpoints:
 - `GET /v3/account/{address}/deposit-link`
 - `POST /v3/portfolio/polymarket/deposit`
 - `POST /v3/portfolio/polymarket/exit`
+- `POST /v3/authorize-and-send/polymarket`
+
+### Single Immediate Market Orders
+
+Use `POST /v3/authorize-and-send/polymarket` when the user asks to place one immediate Polymarket bet/order. This is a fast path for a whitelisted `placeMarketOrder` action, not a strategy deployment. Do not create a deployment plan or run a backtest for a one-off order unless the user asks for a strategy or bot.
+
+Required sequence:
+
+1. Confirm auth with `SUPERIOR_TRADE_PM_API_KEY`.
+2. Fetch `GET /v3/account`.
+3. Set `action.from` only to a `wallet_address` returned in `items[]`. Never trust or invent an arbitrary `from` address; if the user supplied one, verify it appears in the account list before using it.
+4. Check `GET /v3/account/{address}/status/polymarket` for that wallet. If onboarding, approvals, credentials, or available pUSD balance are not ready for the requested order, stop and report the blocker.
+5. If the user already provided the complete order payload and explicit affirmative confirmation for that exact payload in the current conversation, submit it without asking unrelated follow-up questions. If not, show the exact payload and ask for confirmation before submitting.
+6. Send exactly one request to `POST /v3/authorize-and-send/polymarket` and report the real API result. Never fabricate fills, order IDs, balances, or status.
+
+Supported action:
+
+```json
+{
+  "action": {
+    "type": "placeMarketOrder",
+    "from": "0x1234567890123456789012345678901234567890",
+    "tokenID": "1234567890",
+    "side": "BUY",
+    "amount": "10",
+    "price": 0.55,
+    "orderType": "FOK"
+  }
+}
+```
+
+Fast confirmation format:
+
+```
+Order Summary:
+• Venue: Polymarket
+• Wallet address: [wallet_address from GET /v3/account] — readiness: [ready/blockers from status endpoint]
+• Token ID: [tokenID]
+• Side: [BUY/SELL]
+• Amount: [amount] pUSD
+• Limit price: [price]
+• Order type: [orderType]
+
+This will submit one REAL Polymarket market order immediately. Proceed? (yes/no)
+```
 
 Current Polymarket state checks:
 
@@ -412,6 +457,35 @@ Closes all Polymarket positions and cancels orders for the selected wallet. This
 ```
 
 Before calling this, tell the user it closes all Polymarket positions/orders for that wallet and get explicit confirmation.
+
+#### POST `/v3/authorize-and-send/polymarket` — Place One Immediate Market Order
+
+Signs and sends one whitelisted Polymarket action through an owned wallet. Use this for a single user-confirmed bet/order, not for strategy deployments.
+
+Before calling this endpoint:
+
+1. Fetch `GET /v3/account`.
+2. Use only a listed `wallet_address` as `action.from`.
+3. Fetch `GET /v3/account/{address}/status/polymarket`.
+4. Confirm onboarding, approvals, credentials, and pUSD balance are ready for the requested order.
+5. Confirm the exact order payload with the user unless they already explicitly confirmed that exact payload in the current conversation.
+
+```json
+// Request
+{
+  "action": {
+    "type": "placeMarketOrder",
+    "from": "0x5678901234567890123456789012345678901234",
+    "tokenID": "1234567890",
+    "side": "BUY",
+    "amount": "10",
+    "price": 0.55,
+    "orderType": "FOK"
+  }
+}
+```
+
+`action.type` must be `placeMarketOrder`. `action.from` must be an owned wallet from `GET /v3/account`; do not pass user-provided addresses that are not in the account list.
 
 ### Polymarket Positions and Orders
 
