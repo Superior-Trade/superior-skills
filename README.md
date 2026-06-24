@@ -116,14 +116,16 @@ skill with a `SKILL.md`. Install through whichever entry point your agent uses:
 | Entry point | Command |
 |---|---|
 | **npx skills** (universal — Claude Code, OpenClaw, Cursor, Codex, Gemini CLI, +50) | `npx skills add Superior-Trade/superior-skills` |
-| **GitHub CLI** | `gh skill install Superior-Trade/superior-skills donchian-strong-regime` |
+| **GitHub CLI** (gh ≥ v2.90.0) | `gh skill install Superior-Trade/superior-skills` — browse & pick, or name one: `gh skill install Superior-Trade/superior-skills superior-trade-hyperliquid` |
 | **Claude Code** | `/plugin marketplace add Superior-Trade/superior-skills` then `/plugin install superior-skills@superior-trade` |
-| **OpenClaw / ClawHub** | `openclaw skills install superior-skills` &nbsp;·&nbsp; or `openclaw skills install git:Superior-Trade/superior-skills@main` |
+| **OpenClaw / ClawHub** | `openclaw skills install @superior-ai/<skill>` (owner-qualified) &nbsp;·&nbsp; or from git: `openclaw skills install git:Superior-Trade/superior-skills@main` |
 | **From our domain** | point any agent at `https://superior.trade/SKILL.md` |
 | **Manual** | clone this repo and copy `skills/<name>/` into your agent's skills folder |
 
-Installing the repo pulls the whole library; grab a single skill with `--skill <name>` (npx) or
-by naming it (`gh skill install Superior-Trade/superior-skills <name>`).
+Installing the repo pulls the whole library; grab a single skill with `--skill <name>` (npx) or by
+naming it (`gh skill install Superior-Trade/superior-skills <name>`). On **ClawHub** several skill
+names are generic and shared by other publishers, so always use the owner-qualified form
+**`@superior-ai/<skill>`** to install ours.
 
 Hyperliquid skills need a **`SUPERIOR_TRADE_API_KEY`**; Polymarket skills use
 **`SUPERIOR_TRADE_PM_API_KEY`**. The root `SKILL.md` (`superior-trade-auth`) walks a new user
