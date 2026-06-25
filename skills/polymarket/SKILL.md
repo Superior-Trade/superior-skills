@@ -1,7 +1,7 @@
 ---
 name: polymarket
-version: 1.1.1
-updated: 2026-06-19
+version: 1.1.2
+updated: 2026-06-25
 description: "Discover Polymarket markets, run v3 filled-data backtests, and plan/start live Nautilus deployments through Superior Trade's managed cloud."
 homepage: https://superior.trade
 source: https://github.com/Superior-Trade
@@ -168,13 +168,13 @@ If the same task fails 3+ times (e.g. strategy source/config keeps failing, back
 7. Write strategy    →  Author NautilusTrader Python strategy code from the closest archetype
 8. Backtest          →  POST /v3/backtest with `strategyId`, `strategySource`, and `strategyConfig`
 9. Review results    →  Poll/read backtest status/result/logs; analyze performance; iterate or proceed
-10. Plan deployment  →  POST /v3/deployment with `{ deployment: { code, config } }`
+10. Plan deployment  →  POST /v3/deployment with `{ deployment: { code, config } }`, then read `GET /v3/deployment/{id}/status`; persisted default is `pending`
 11. Store credentials → POST /v3/deployment/{id}/credentials with an owned `wallet_address`
 12. Start            →  Confirm with user → PATCH/PUT /v3/deployment/{id}/status `{ "action": "start" }`
 13. Monitor/stop     →  Status/logs plus live positions/orders; stop with PATCH/PUT `/v3/deployment/{id}/status` `{ "action": "stop" }`
 ```
 
-Deployment start requires both credential metadata and explicit user confirmation.
+Deployment start requires both credential metadata and explicit user confirmation. A deployment is not started by `POST /v3/deployment`; the create response is a planning response and may include transient planner status. Treat the persisted status from `GET /v3/deployment/{id}/status` as authoritative. The default persisted v3 deployment status is `pending` until the status endpoint receives `{ "action": "start" }`.
 
 ### Strategy Archetypes
 
@@ -699,6 +699,8 @@ Before suggesting deployment, always run a backtest first. If the backtest produ
 
 Plans and persists a single v3 Polymarket deployment. Alias: `POST /v3/deployments`.
 
+Important: this endpoint creates the deployment plan only. The response can include `deployment.status: "starting"` because the planner is preparing runtime resources, but that does **not** mean live trading has started. The persisted deployment status defaults to `pending` and must be verified with `GET /v3/deployment/{id}/status` before reporting status to the user. Live start only happens after `PATCH/PUT /v3/deployment/{id}/status` with `{ "action": "start" }`.
+
 ```json
 // Request
 {
@@ -714,7 +716,7 @@ Plans and persists a single v3 Polymarket deployment. Alias: `POST /v3/deploymen
   }
 }
 
-// Response — 202
+// Response — 202 planning response
 {
   "deployment": {
     "id": "01k...",
@@ -729,7 +731,7 @@ Plans and persists a single v3 Polymarket deployment. Alias: `POST /v3/deploymen
 }
 ```
 
-`deployment.code` and `deployment.config` are required. For Polymarket deployments, `deployment.config.instrument_id` must be formatted as `<clobTokenId>.POLYMARKET`. If runtime images or artifacts are not ready, the response is `409` with `deployment.status: "blocked"` and a `reason`.
+`deployment.code` and `deployment.config` are required. For Polymarket deployments, `deployment.config.instrument_id` must be formatted as `<clobTokenId>.POLYMARKET`. If runtime images or artifacts are not ready, the response is `409` with `deployment.status: "blocked"` and a `reason`. After a successful create, immediately call `GET /v3/deployment/{id}/status`; report the persisted status from that response, normally `pending`, not the planner status in the create response.
 
 #### POST `/v3/deployment/{id}/credentials` — Store Wallet Metadata
 
