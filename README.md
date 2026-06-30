@@ -68,6 +68,7 @@ The `skills/intelligence/` folder provides the platform's pair-ranking system. A
 | Regime gate | `skills/regime-overlay/SKILL.md` | trend filter, directional confirmation |
 | Sub-account orchestration | `skills/superior-trade-hyperliquid/SKILL.md` → `/v2/portfolio/...` | multi-strategy isolation |
 | Hyperliquid deposit | `skills/superior-trade-hyperliquid/SKILL.md` → `/v2/portfolio/hyperliquid/deposit` | Arbitrum USDC deposit, fund trading |
+| Hyperliquid withdrawal | `skills/superior-trade-hyperliquid/SKILL.md` → `/v3/portfolio/hyperliquid/withdraw` | Arbitrum USDC withdrawal, 1 USDC fee deducted, delayed arrival |
 | Atomic exit-all | `skills/superior-trade-hyperliquid/SKILL.md` → `/v2/portfolio/hyperliquid/exit` | kill-switch, emergency exit |
 | HIP3 RWA support | `skills/superior-trade-hyperliquid/SKILL.md` → HIP3 section | tokenized stocks, commodities, indices |
 | Polymarket strategy archetypes | one skill each: `skills/probability-momentum/`, `…/probability-mean-reversion/`, `…/deadline-drift/`, `…/related-market-spread/`, `…/large-fill-pressure/`, `…/catalyst-confirmation/` | prediction-market archetypes |

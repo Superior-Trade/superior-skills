@@ -1,7 +1,7 @@
 ---
 name: superior-trade-hyperliquid
-version: 4.5.0
-updated: 2026-06-07
+version: 4.5.1
+updated: 2026-06-30
 description: "Backtest and deploy trading strategies on Superior Trade's managed cloud."
 homepage: https://account.superior.trade
 source: https://github.com/Superior-Trade
@@ -10,10 +10,10 @@ auth:
   type: api_key
   env: SUPERIOR_TRADE_API_KEY
   header: x-api-key
-  scope: "Read-write the user's own backtests and deployments. Can start live trading deployments that execute real trades with the user's platform-managed trading wallet and can deposit native Arbitrum USDC from that wallet into Hyperliquid. Cannot withdraw funds, export private keys, or access other users' data."
+  scope: "Read-write the user's own backtests and deployments. Can start live trading deployments that execute real trades with the user's platform-managed trading wallet, deposit native Arbitrum USDC from that wallet into Hyperliquid, and withdraw Hyperliquid USDC to a user-confirmed Arbitrum address. Cannot export private keys, move unsupported assets/chains, or access other users' data."
 env:
   - name: SUPERIOR_TRADE_API_KEY
-    description: "Superior Trade API key (x-api-key header). Obtained at https://account.superior.trade. Can create/manage backtests and deployments including live trading, and can deposit native Arbitrum USDC from the user's platform-managed wallet into Hyperliquid. Cannot withdraw funds, export private keys, or access other users' data. Users do not need their own Hyperliquid wallet."
+    description: "Superior Trade API key (x-api-key header). Obtained at https://account.superior.trade. Can create/manage backtests and deployments including live trading, deposit native Arbitrum USDC from the user's platform-managed wallet into Hyperliquid, and withdraw Hyperliquid USDC to a user-confirmed Arbitrum address. Cannot export private keys, move unsupported assets/chains, or access other users' data. Users do not need their own Hyperliquid wallet."
     required: true
     type: api_key
 externalEndpoints:
@@ -104,15 +104,16 @@ This skill requires exactly **one credential**: an `x-api-key` header value. The
 7. **Prefer user-friendly language** over internal technical names when speaking conversationally. Say "strategy", "the bot", or "the trading engine" instead of referencing internal class names or infrastructure details. This is a UX preference — if the user asks about the underlying technology, answer honestly (the platform uses Freqtrade for strategy execution on Hyperliquid).
 8. **NEVER** send users to `app.superior.trade` — the correct URL is `https://account.superior.trade`
 
-> **Key scope notice:** The API key can create and start live trading deployments that execute real trades using the user's platform-managed trading wallet. It can also initiate native Arbitrum USDC deposits from that wallet into Hyperliquid. It cannot withdraw funds, export private keys, or move arbitrary assets/chains. Users should confirm scope with Superior Trade and backtest their strategy first.
+> **Key scope notice:** The API key can create and start live trading deployments that execute real trades using the user's platform-managed trading wallet. It can also initiate native Arbitrum USDC deposits into Hyperliquid and Hyperliquid USDC withdrawals to a user-confirmed Arbitrum address. It cannot export private keys or move unsupported assets/chains. Users should confirm scope with Superior Trade and backtest their strategy first.
 
 | Can do                                                                                     | Cannot do                                          |
 | ------------------------------------------------------------------------------------------ | -------------------------------------------------- |
 | Create, list, delete backtests                                                             | Access other users' data                           |
-| Create, start, stop, delete deployments (including live trading with real funds)           | Withdraw funds from any wallet                     |
-| Trigger server-side credential resolution (no user secrets collected)                      | Export or view private keys                        |
+| Create, start, stop, delete deployments (including live trading with real funds)           | Export or view private keys                        |
+| Trigger server-side credential resolution (no user secrets collected)                      | Ask users for wallet secrets                       |
 | View deployment logs, status, wallet metadata                                              | Move unsupported assets or use unsupported chains  |
-| Deposit native Arbitrum USDC from the user's platform wallet into Hyperliquid via the API | Bridge from external wallets or withdraw from Hyperliquid |
+| Deposit native Arbitrum USDC from the user's platform wallet into Hyperliquid via the API | Bridge from external wallets                       |
+| Withdraw Hyperliquid USDC to a user-confirmed Arbitrum address via the API                | Withdraw without explicit user confirmation        |
 
 ### Live Deployment Confirmation
 
@@ -151,7 +152,8 @@ Superior Trade uses Hyperliquid's native **agent wallet** pattern. Users do NOT 
 - Always check the **main wallet's** balance, not the agent wallet's
 - `POST /v3/account/{address}/hyperliquid` can configure the Hyperliquid referral, approve Superior's builder fee, create/approve the agent wallet, and persist the agent wallet metadata
 - The API can deposit native Arbitrum USDC from the user's platform-managed wallet into Hyperliquid via `POST /v2/portfolio/hyperliquid/deposit`
-- The API cannot withdraw from Hyperliquid or bridge unsupported assets/chains
+- The API can withdraw Hyperliquid USDC to a user-confirmed Arbitrum address via `POST /v3/portfolio/hyperliquid/withdraw`
+- The API cannot bridge unsupported assets/chains or withdraw without explicit user confirmation
 - **NEVER tell users to deposit to the agent wallet address**
 
 ### Funding, Deposits, and Balance Checks
@@ -164,7 +166,7 @@ Funding is a two-stage flow:
 
 Before calling the deposit endpoint, tell the user that this sends real USDC from their platform wallet into Hyperliquid and ask for explicit confirmation. If the platform wallet does not have enough Arbitrum USDC, tell the user they need to add more of their own capital to the platform account before the agent can deposit or trade.
 
-**Supported deposit only:** native USDC on Arbitrum One to Hyperliquid. Do not suggest this endpoint for Ethereum mainnet USDC, bridged USDC variants, Base, Optimism, other assets, external user wallets, or withdrawals.
+**Supported deposit only:** native USDC on Arbitrum One to Hyperliquid. Do not suggest the deposit endpoint for Ethereum mainnet USDC, bridged USDC variants, Base, Optimism, other assets, external user wallets, or withdrawals. Use the dedicated withdrawal endpoint for Hyperliquid USDC withdrawals.
 
 Always check the **main wallet** (platform-managed trading wallet), NOT the agent wallet.
 
@@ -759,6 +761,74 @@ If `from` is omitted, the server uses the authenticated user's default main trad
 **Errors:** `400 invalid_json`, `400 validation_failed`, `400 unsupported_chain`, `400 unsupported_asset`, `400 insufficient_balance`, `400 no_credentials`, `500 server_error`, `502 deposit_failed`.
 
 After a successful deposit, re-check Hyperliquid balances with `clearinghouseState` and `spotClearinghouseState` before starting a live deployment. Do not assume the deposited funds are available until the balance check confirms them.
+
+#### POST `/v3/portfolio/hyperliquid/withdraw` — Withdraw Hyperliquid USDC to Arbitrum
+
+Withdraws USDC from the authenticated user's Hyperliquid account to an Arbitrum address.
+
+**Use this when:** the user explicitly asks to move Hyperliquid USDC back to an Arbitrum wallet address they provide or confirm.
+
+**Important withdrawal behavior:**
+
+- Hyperliquid deducts a **1 USDC withdrawal fee from the withdrawal amount**. If the user withdraws `5` USDC, their Hyperliquid balance decreases by `5` USDC and the destination should receive about `4` USDC.
+- Do not withdraw amounts less than or equal to `1` USDC because the Hyperliquid fee can consume the withdrawal.
+- Withdrawals can take time to arrive on Arbitrum. A successful API response means Hyperliquid accepted the withdrawal request; do not promise immediate wallet arrival.
+- Re-check Hyperliquid balance after the withdrawal and, when the user asks about arrival, verify the destination wallet or Arbiscan transaction status.
+
+Before calling this endpoint, show the amount, fee, source wallet/account, and destination address, then wait for explicit confirmation:
+
+```
+Withdrawal Summary:
+• Chain: Arbitrum One
+• Asset: native USDC
+• Amount: [amount] USDC
+• Hyperliquid withdrawal fee: 1 USDC deducted from the withdrawal amount
+• Expected destination amount: [amount - 1] USDC
+• Hyperliquid balance decrease: [amount] USDC
+• Source: [wallet_address or account default] Hyperliquid balance
+• Destination: [to_address]
+
+This will move REAL USDC out of Hyperliquid. Arrival on Arbitrum can take some time after Hyperliquid accepts the request. Proceed? (yes/no)
+```
+
+**Constants:**
+
+| Field | Value |
+| ----- | ----- |
+| Chain aliases | `arbitrum`, `arbitrum_one`, `arbitrum-one`, `42161` |
+| Native Arbitrum USDC | `0xaf88d065e77c8cC2239327C5EDb3A432268e5831` |
+| Hyperliquid withdrawal fee | `1` USDC |
+| Decimals | Up to 6 decimal places |
+
+```json
+// Request
+{
+  "chain": "arbitrum",
+  "asset_address": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+  "amount": "5",
+  "to": "0x...",
+  "from": "0x... (optional)"
+}
+
+// Response (200)
+{
+  "chain": "arbitrum",
+  "asset_address": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+  "amount": "5",
+  "destination": "0x...",
+  "wallet_address": "0x...",
+  "hyperliquid_response": {
+    "status": "ok",
+    "response": {
+      "type": "default"
+    }
+  }
+}
+```
+
+If `from` is omitted, the server uses the authenticated user's default main trading wallet. If `from` is provided, it must be one of the user's platform-managed wallets; ownership is validated server-side.
+
+**Errors:** `400 invalid_json`, `400 validation_failed`, `400 unsupported_chain`, `400 unsupported_asset`, `400 insufficient_balance`, `400 no_credentials`, `500 server_error`, `502 withdraw_failed`.
 
 ### Portfolio Exit
 
