@@ -58,7 +58,7 @@ The `skills/intelligence/` folder provides the platform's pair-ranking system. A
 | Capability | Where it lives | Aliases |
 |---|---|---|
 | API key onboarding | `SKILL.md` → `/auth/sign-in/magic-link` | auth setup, email API key, x-api-key |
-| Account status | `skills/superior-trade-hyperliquid/SKILL.md` → `/v2/account/status` | setup readiness, agent wallet, builder fee |
+| Hyperliquid account bootstrap | `skills/superior-trade-hyperliquid/SKILL.md` → `/v3/account/{address}/hyperliquid` + `/v3/account/{address}/status/hyperliquid` | setup readiness, agent wallet, builder fee |
 | Strategy backtesting | `skills/superior-trade-hyperliquid/SKILL.md` → `/v2/backtesting` | walk-forward, parameter sweep |
 | Live deployment | `skills/superior-trade-hyperliquid/SKILL.md` → `/v2/deployment` | autonomous execution, agentic trading |
 | Opportunity scanner | `skills/intelligence/` | pair scanner, market screener, ranking funnel |

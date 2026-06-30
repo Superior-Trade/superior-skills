@@ -43,11 +43,12 @@ When a user needs to get their API key:
 
 1. Go to https://account.superior.trade
 2. Sign up (email or wallet)
-3. Complete onboarding — a trading wallet is created for you and shown in your account
+3. Create or select a trading account wallet from `GET /v3/account`
 4. Fund the platform trading wallet with native USDC on Arbitrum One using the user's own capital
 5. Create an API key (`st_live_...`) from your account settings
 6. Add it as `SUPERIOR_TRADE_API_KEY` in your agent's environment/credential settings
-7. If the wallet's USDC is still on Arbitrum, use `POST /v2/portfolio/hyperliquid/deposit` to deposit it into Hyperliquid before live trading
+7. Bootstrap Hyperliquid setup with `POST /v3/account/{address}/hyperliquid` for the selected trading wallet
+8. If the wallet's USDC is still on Arbitrum, use `POST /v2/portfolio/hyperliquid/deposit` to deposit it into Hyperliquid before live trading
 
 If the `SUPERIOR_TRADE_API_KEY` env var is already set, use it directly in the `x-api-key` header without prompting the user.
 
@@ -137,17 +138,18 @@ Do NOT start a live deployment without an explicit affirmative response.
 
 ### Wallet Architecture (CRITICAL)
 
-Superior Trade uses Hyperliquid's native **agent wallet** pattern. Users do NOT need their own Hyperliquid wallet — everything is managed by the platform. If a user asks "how do I link my Hyperliquid account," the answer is: **they don't need one** — a trading wallet is created at signup.
+Superior Trade uses Hyperliquid's native **agent wallet** pattern. Users do NOT need their own Hyperliquid wallet — everything is managed by the platform. If a user asks "how do I link my Hyperliquid account," the answer is: **they don't need one** — create or select a Superior trading account wallet with `GET /v3/account` / `POST /v3/account`, then bootstrap Hyperliquid setup with `POST /v3/account/{address}/hyperliquid`.
 
-1. **Main wallet** — a platform-managed trading wallet created for each user at signup. Users fund this address with native USDC on Arbitrum One, then deposit that USDC into Hyperliquid using the API when needed. The address is shown at https://account.superior.trade.
+1. **Main wallet** — a platform-managed trading account wallet. Users fund this address with native USDC on Arbitrum One, then deposit that USDC into Hyperliquid using the API when needed. The address is shown at https://account.superior.trade and returned by `GET /v3/account`.
 2. **Agent wallet** — a platform-managed signing key authorized via Hyperliquid's `approveAgent`. Signs trades against the main wallet's balance.
 
 **Key facts:**
 
 - The agent wallet does NOT need its own funds — $0 balance is normal and expected
-- Each user has one agent wallet; all deployments share it
+- Each trading account has its own agent wallet. Deployments can auto-resolve an idle trading account, or target one explicitly.
 - The credentials endpoint returns `wallet_type: "agent_wallet"` for auto-resolved wallets
 - Always check the **main wallet's** balance, not the agent wallet's
+- `POST /v3/account/{address}/hyperliquid` can configure the Hyperliquid referral, approve Superior's builder fee, create/approve the agent wallet, and persist the agent wallet metadata
 - The API can deposit native Arbitrum USDC from the user's platform-managed wallet into Hyperliquid via `POST /v2/portfolio/hyperliquid/deposit`
 - The API cannot withdraw from Hyperliquid or bridge unsupported assets/chains
 - **NEVER tell users to deposit to the agent wallet address**
@@ -462,7 +464,7 @@ Before `PUT /v2/deployment/{id}/status` → `{"action":"start"}`:
 
 **For live deployments (credentials stored):**
 
-1. **Account ready** — `GET /v2/account/status` verifies account tier, referral status, builder fee configuration, and agent wallet readiness. If it returns `agent_wallet_not_ready` or `builder_not_configured`, stop and tell the user setup is incomplete. If the returned message references an old `app.superior.trade` URL, still direct the user to https://account.superior.trade.
+1. **Account ready** — list/select the trading wallet with `GET /v3/account`, then call `POST /v3/account/{address}/hyperliquid` for that wallet before live deployment. This is a write-capable bootstrap endpoint: it may set the Hyperliquid referrer, approve Superior's builder fee, create and approve the agent wallet, and persist agent wallet metadata. After it returns, verify readiness with `GET /v3/account/{address}/status/hyperliquid`; proceed only when `onboarding.ready` is `true` and `onboarding.blockers` is empty. If bootstrap returns `wallet_not_exportable`, `hyperliquid_bootstrap_failed`, or readiness still has blockers, stop and report the exact blocker instead of starting live trading.
 2. **Credentials stored** — `GET /v2/deployment/{id}` → `credentials_status: "stored"`. If not, call `POST /v2/deployment/{id}/credentials`.
 3. **Identify wallets** — `GET /v2/deployment/{id}/credentials` → note `wallet_address` (agent wallet) and `agent_wallet_address`.
 4. **Funds available** — Check the **main wallet** (platform-managed trading wallet), NOT the agent wallet. Agent wallet having $0 is normal. Query `clearinghouseState` + `spotClearinghouseState` for single deployments. If the master account has sub-accounts, also query `subAccounts2` and sum total balance across master + all sub-accounts — funds allocated to sub-accounts are not available to the master. **Then verify `stake_amount × max_open_trades` fits within the available balance.** The exchange reserves a small fee buffer (~1%), so set `stake_amount` to no more than ~95% of `balance / max_open_trades` to avoid silent trade rejections. If Hyperliquid funds are insufficient but the user has native Arbitrum USDC in the platform wallet, ask for explicit confirmation and call `POST /v2/portfolio/hyperliquid/deposit`, then re-check balances before starting. If both Hyperliquid and platform-wallet funds are insufficient, tell the user they must add more of their own capital to the platform account before live trading can proceed.
@@ -478,12 +480,26 @@ Do NOT skip any step or assume it passed without the API call.
 
 ### Account
 
-#### GET `/v2/account/status` — Account Setup Status
+#### GET `/v3/account` — List Trading Accounts
 
-Returns setup status for the authenticated user before live trading. Use this as the first live-deployment readiness check.
+Lists the user's platform-managed trading account wallets. Use one of these wallet addresses for Hyperliquid bootstrap, readiness checks, deposits, and live deployment credentials.
 
 ```bash
-curl -sS "https://api.superior.trade/v2/account/status" \
+curl -sS "https://api.superior.trade/v3/account" \
+  -H "accept: application/json" \
+  -H "x-api-key: ${SUPERIOR_TRADE_API_KEY}"
+```
+
+If the user has no suitable trading account, create one with `POST /v3/account` before continuing.
+
+#### POST `/v3/account/{address}/hyperliquid` — Bootstrap Hyperliquid Account
+
+Bootstraps Hyperliquid setup for an owned trading account wallet. This endpoint is a mutation, not just a status read. It can call Hyperliquid to set the Superior referrer, approve the Superior builder fee, create and approve the agent wallet, and persist the agent wallet metadata.
+
+Call this before starting a live Hyperliquid deployment for a trading account.
+
+```bash
+curl -sS -X POST "https://api.superior.trade/v3/account/${ADDRESS}/hyperliquid" \
   -H "accept: application/json" \
   -H "x-api-key: ${SUPERIOR_TRADE_API_KEY}"
 ```
@@ -491,39 +507,71 @@ curl -sS "https://api.superior.trade/v2/account/status" \
 ```json
 // Response (200)
 {
-  "accountTier": "free",
-  "referral": {
-    "configured": false,
-    "code": null
+  "chain": "arbitrum",
+  "chain_id": 42161,
+  "account": {
+    "type": "trading_account",
+    "name": "Momentum Vault",
+    "account_index": 1,
+    "wallet_address": "0x..."
+  },
+  "onboarding": {
+    "target": "hyperliquid",
+    "account_type": "trading_account",
+    "ready": true,
+    "next_step": "check_hyperliquid_status",
+    "blockers": [],
+    "steps": [
+      { "id": "verify_trading_account_wallet", "status": "complete" },
+      { "id": "create_agent_wallet", "status": "complete" },
+      { "id": "configure_builder_fee", "status": "complete" },
+      { "id": "check_hyperliquid_status", "status": "ready" }
+    ]
   },
   "builder": {
     "configured": true,
     "address": "0xf4397BF0B047a2e70E860d475C46496F6A9efaF1",
+    "requiredFeePercent": 0.04,
     "feePercent": 0.04
   },
   "agentWallet": {
     "created": true,
     "address": "0x..."
+  },
+  "referral": {
+    "configured": true,
+    "code": "AIWINMORETRADES4U"
   }
 }
 ```
 
-**Fields:**
+**Errors:** `400 wallet_not_exportable`, `400 validation_failed`, `404 trading_account_not_found`, `502 hyperliquid_bootstrap_failed`, `500 database_not_configured`.
 
-| Field | Meaning |
-| ----- | ------- |
-| `accountTier` | `"free"` or `"pro"` |
-| `referral.configured` | Whether Hyperliquid referral status is configured; informational |
-| `referral.code` | Referral code when configured, otherwise `null` |
-| `builder.configured` | Whether the required builder fee is configured |
-| `builder.address` | Superior Trade builder address checked on Hyperliquid |
-| `builder.feePercent` | Configured builder fee as a percentage |
-| `agentWallet.created` | Whether the Hyperliquid agent wallet exists and is usable |
-| `agentWallet.address` | Agent wallet address; this is not the wallet to fund |
+If this endpoint returns `502 hyperliquid_bootstrap_failed`, do not proceed. The Hyperliquid exchange action failed or returned a non-ok response, so the account may be partially configured. Report the message and retry only after the cause is understood.
 
-**Errors:** `400 agent_wallet_not_ready`, `400 builder_not_configured`, `401 unauthorized`, `404 user_not_found`, `500 database_not_configured`.
+#### GET `/v3/account/{address}/status/hyperliquid` — Hyperliquid Readiness
 
-If this endpoint returns a `400`, do not proceed with live credentials or deployment start. Tell the user which setup requirement is incomplete and send them to https://account.superior.trade for setup.
+Returns Hyperliquid readiness for an owned trading account wallet. Use this after bootstrap and before live deployment start.
+
+```bash
+curl -sS "https://api.superior.trade/v3/account/${ADDRESS}/status/hyperliquid" \
+  -H "accept: application/json" \
+  -H "x-api-key: ${SUPERIOR_TRADE_API_KEY}"
+```
+
+Proceed only when `onboarding.ready` is `true` and `onboarding.blockers` is empty.
+
+#### GET `/v2/account/status` — Legacy Account Setup Status
+
+Legacy status endpoint for the authenticated user before live trading. Prefer the v3 trading-account flow above when selecting or bootstrapping a specific trading wallet.
+
+```bash
+curl -sS "https://api.superior.trade/v2/account/status" \
+  -H "accept: application/json" \
+  -H "x-api-key: ${SUPERIOR_TRADE_API_KEY}"
+```
+
+If this endpoint returns a `400`, do not proceed with live credentials or deployment start. For trading-account workflows, use `GET /v3/account`, `POST /v3/account/{address}/hyperliquid`, and `GET /v3/account/{address}/status/hyperliquid` to resolve and verify setup for the selected wallet.
 
 ### Backtesting
 
