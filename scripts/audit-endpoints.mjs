@@ -25,7 +25,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const CONTRACT_FILE = join(ROOT, "scripts", "api-contract", "unified.json");
 const OPENAPI_URL =
   process.env.SUPERIOR_UNIFIED_API_OPENAPI_URL ??
-  "https://unified-api-zag4gzx6gq-an.a.run.app/openapi.json";
+  "https://api.superior.trade/openapi.json";
 
 if (process.argv.includes("--refresh")) {
   const key = process.env.SUPERIOR_TRADE_API_KEY;

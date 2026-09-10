@@ -18,7 +18,7 @@ metadata:
       required: true
       type: api_key
   externalEndpoints:
-    - url: https://unified-api-zag4gzx6gq-an.a.run.app
+    - url: https://api.superior.trade
       purpose: "Unified venue discovery, backtests, and deployment planning"
 ---
 
@@ -28,7 +28,7 @@ Use this skill when the user asks about Robinhood Chain Lighter, Robinhood Walle
 
 **Exchange name:** `lighter-robinhood`
 **Venue config:** `{ "venue": "lighter-robinhood", "instrument_id": "<SYMBOL>-PERP.LIGHTER-RH" }`
-**Superior API base:** `https://unified-api-zag4gzx6gq-an.a.run.app`
+**Superior API base:** `https://api.superior.trade`
 **Robinhood Chain id:** `4663`
 **Perps deposit asset:** `USDG`
 

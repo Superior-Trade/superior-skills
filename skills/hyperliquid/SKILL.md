@@ -18,7 +18,7 @@ metadata:
       required: true
       type: api_key
   externalEndpoints:
-    - url: https://unified-api-zag4gzx6gq-an.a.run.app
+    - url: https://api.superior.trade
       purpose: "All backtesting and deployment operations"
     - url: https://api.hyperliquid.xyz/info
       purpose: "Read-only public queries. Balance checks send the user's public wallet address (not a secret — visible on-chain). Pair validation sends no user data. No authentication or secrets are sent to this endpoint."
@@ -32,7 +32,7 @@ Read [`../../references/unified-runtime.md`](../../references/unified-runtime.md
 before any Superior Trade request. Use only current Unified API methods and
 payload fields.
 
-**Base URL:** `https://unified-api-zag4gzx6gq-an.a.run.app`
+**Base URL:** `https://api.superior.trade`
 **Auth:** `x-api-key` header on all protected endpoints
 **Discovery:** `GET /openapi.json` (OpenAPI), `GET /install.txt`, and `GET /.well-known/mcp.json`
 

@@ -1,8 +1,8 @@
 const CLAIM =
-  /\b(GET|POST|PUT|PATCH|DELETE)\s+`?((?:https:\/\/(?:api\.superior\.trade|unified-api-zag4gzx6gq-an\.a\.run\.app))?\/[0-9a-zA-Z._\-\/{}:$]+)`?/g;
+  /\b(GET|POST|PUT|PATCH|DELETE)\s+`?((?:https:\/\/api\.superior\.trade)?\/[0-9a-zA-Z._\-\/{}:$]+)`?/g;
 const LEGACY_ENDPOINT = /\/v(?:1|2|3)(?:\/|\b)[0-9a-zA-Z._\-\/{}:$?=&]*/g;
 const LEGACY_API_BASE =
-  /https:\/\/api\.superior\.trade(?:\/[0-9a-zA-Z._\-\/{}:$?=&]*)?/g;
+  /https:\/\/unified-api-zag4gzx6gq-an\.a\.run\.app(?:\/[0-9a-zA-Z._\-\/{}:$?=&]*)?/g;
 const LEGACY_COMPARISON_BLOCK =
   /<!--\s*legacy-api-comparison:start\s*-->[\s\S]*?<!--\s*legacy-api-comparison:end\s*-->/g;
 const LEGACY_CLAIM_PATH = /^\/(?:v(?:1|2|3)(?:\/|$)|auth(?:\/|$))/;
@@ -24,7 +24,6 @@ export function extractEndpointClaims(
   for (const match of text.matchAll(CLAIM)) {
     const path = match[2]
       .replace("https://api.superior.trade", "")
-      .replace("https://unified-api-zag4gzx6gq-an.a.run.app", "")
       .split("?")[0]
       .replace(/[.:,)`]+$/, "");
     if (

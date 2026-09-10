@@ -17,7 +17,7 @@ metadata:
 
 # Superior Trade Authentication
 
-Use this skill to get a Superior Trade API key and make authenticated requests to `https://unified-api-zag4gzx6gq-an.a.run.app`.
+Use this skill to get a Superior Trade API key and make authenticated requests to `https://api.superior.trade`.
 
 ## API Key Onboarding
 
@@ -26,7 +26,7 @@ If a user does not already have a Superior Trade API key, ask for the email addr
 Request a verification OTP with:
 
 ```bash
-curl -sS https://unified-api-zag4gzx6gq-an.a.run.app/account/register \
+curl -sS https://api.superior.trade/account/register \
   -X POST \
   -H 'Content-Type: application/json' \
   -d '{"email":"user@example.com"}'
@@ -35,7 +35,7 @@ curl -sS https://unified-api-zag4gzx6gq-an.a.run.app/account/register \
 Ask the user for the OTP sent to that inbox, then exchange it for an API key:
 
 ```bash
-curl -sS https://unified-api-zag4gzx6gq-an.a.run.app/account/verify \
+curl -sS https://api.superior.trade/account/verify \
   -X POST \
   -H 'Content-Type: application/json' \
   -d '{"email":"user@example.com","otp":"123456"}'
@@ -50,7 +50,7 @@ Do not paste the received key into chat, source files, logs, or examples. If the
 Use the key in the `x-api-key` header:
 
 ```bash
-curl -sS https://unified-api-zag4gzx6gq-an.a.run.app/account \
+curl -sS https://api.superior.trade/account \
   -H "x-api-key: $SUPERIOR_TRADE_API_KEY"
 ```
 
@@ -59,7 +59,7 @@ The email is verified once the API key is used successfully in an authenticated 
 ## Operating Rules
 
 - Prefer `SUPERIOR_TRADE_API_KEY` from the environment or credential manager when it is available.
-- Use `https://unified-api-zag4gzx6gq-an.a.run.app` as the production API base URL.
+- Use `https://api.superior.trade` as the production API base URL.
 - Use only the unversioned Unified API contract from `GET /openapi.json`.
 - Use `Content-Type: application/json` for JSON request bodies.
 - Never fabricate authentication status. Verify by making a real API call when credentials are available.

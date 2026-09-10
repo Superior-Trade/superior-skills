@@ -33,7 +33,7 @@ metadata:
 
 Getting a user from nothing to a running strategy. This skill owns the path; each venue skill owns the venue.
 
-**Base URL:** `https://unified-api-zag4gzx6gq-an.a.run.app`
+**Base URL:** `https://api.superior.trade`
 **Auth:** `x-api-key` header on every protected endpoint
 **Account UI:** `https://account.superior.trade`
 
@@ -62,7 +62,7 @@ If it is already in the environment, use it and move on — do not ask the user 
 If it is missing, ask for the email address that should receive an OTP, then:
 
 ```bash
-curl -sS https://unified-api-zag4gzx6gq-an.a.run.app/account/register \
+curl -sS https://api.superior.trade/account/register \
   -X POST -H 'Content-Type: application/json' \
   -d '{"email":"user@example.com"}'
 ```
@@ -75,7 +75,7 @@ https://account.superior.trade.
 Verify it works before going further:
 
 ```bash
-curl -sS https://unified-api-zag4gzx6gq-an.a.run.app/wallet -H "x-api-key: $SUPERIOR_TRADE_API_KEY"
+curl -sS https://api.superior.trade/wallet -H "x-api-key: $SUPERIOR_TRADE_API_KEY"
 ```
 
 A `401`/`403` means the key is wrong or truncated — ask the user to re-copy the full key from the latest email. The email is verified by the first successful authenticated call, so this doubles as activation.
