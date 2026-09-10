@@ -18,7 +18,7 @@ metadata:
       required: true
       type: api_key
   externalEndpoints:
-    - url: https://unified-api-zag4gzx6gq-an.a.run.app
+    - url: https://api.superior.trade
       purpose: "Unified Lighter market context, wallet reads, backtests, and deployments"
 ---
 
@@ -31,7 +31,7 @@ Read [`../../references/unified-runtime.md`](../../references/unified-runtime.md
 before making any request. The OpenAPI contract, not older venue workflows,
 defines which Lighter operations are available.
 
-**Base URL:** `https://unified-api-zag4gzx6gq-an.a.run.app`
+**Base URL:** `https://api.superior.trade`
 **Auth:** `x-api-key: $SUPERIOR_TRADE_API_KEY`
 **Venue config:** `{ "venue": "lighter", "instrument_id": "<SYMBOL>.LIGHTER" }`
 

@@ -223,17 +223,17 @@ Adding or editing a skill: see [AUTHORING.md](AUTHORING.md), and run `pnpm valid
 
 ```
 # List trading accounts
-curl https://unified-api-zag4gzx6gq-an.a.run.app/wallet \
+curl https://api.superior.trade/wallet \
   -H "x-api-key: $SUPERIOR_TRADE_API_KEY"
 
 # Backtest a strategy
-curl -X POST https://unified-api-zag4gzx6gq-an.a.run.app/runtime/backtests \
+curl -X POST https://api.superior.trade/runtime/backtests \
   -H "x-api-key: $SUPERIOR_TRADE_API_KEY" \
   -H "content-type: application/json" \
   -d @config-and-code.json
 
 # Creation queues the backtest; poll until completion
-curl https://unified-api-zag4gzx6gq-an.a.run.app/runtime/backtests/{id} \
+curl https://api.superior.trade/runtime/backtests/{id} \
   -H "x-api-key: $SUPERIOR_TRADE_API_KEY"
 ```
 

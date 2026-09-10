@@ -3,7 +3,7 @@
 Use the Unified API for every Superior Trade operation documented by this
 package.
 
-- Base URL: `${SUPERIOR_UNIFIED_API_URL:-https://unified-api-zag4gzx6gq-an.a.run.app}`
+- Base URL: `${SUPERIOR_UNIFIED_API_URL:-https://api.superior.trade}`
 - Authentication: `x-api-key: $SUPERIOR_TRADE_API_KEY`
 - Contract: `GET /openapi.json`
 - MCP discovery: `GET /.well-known/mcp.json`

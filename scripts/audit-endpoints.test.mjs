@@ -86,10 +86,10 @@ test("the endpoint audit rejects mistyped route namespaces", () => {
   );
 });
 
-test("the endpoint audit rejects legacy API guidance", () => {
+test("the endpoint audit rejects legacy route and origin guidance", () => {
   const result = runFixtureAudit({
     entrySkillAppend:
-      "\nCall GET /v2/backtesting at https://api.superior.trade during migration.\n",
+      "\nCall GET /v2/backtesting or GET https://unified-api-zag4gzx6gq-an.a.run.app/wallet during migration.\n",
   });
 
   assert.notEqual(result.status, 0, result.stdout + result.stderr);

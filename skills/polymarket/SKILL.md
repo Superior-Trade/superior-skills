@@ -18,7 +18,7 @@ metadata:
       required: true
       type: api_key
   externalEndpoints:
-    - url: https://unified-api-zag4gzx6gq-an.a.run.app
+    - url: https://api.superior.trade
       purpose: "Unified account, wallet, market context, typed executions, filled-data backtests, deployments, and logs"
 ---
 
@@ -30,7 +30,7 @@ Read [`../../references/unified-runtime.md`](../../references/unified-runtime.md
 before any Superior Trade request. Use only methods, fields, and capabilities
 published by Unified OpenAPI.
 
-**Base URL:** `https://unified-api-zag4gzx6gq-an.a.run.app`. If the environment configures a different base URL, use that instead.
+**Base URL:** `https://api.superior.trade`. If the environment configures a different base URL, use that instead.
 **Auth:** Prefer `x-api-key: <api_key>` for Superior Trade product API keys. Browser/session callers may use `Authorization: Bearer <token>`.
 **Docs:** `GET /openapi.json` (Unified OpenAPI contract)
 
